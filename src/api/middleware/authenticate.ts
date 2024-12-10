@@ -1,6 +1,6 @@
 import { Context, Next } from 'koa';
 import { verify } from 'jsonwebtoken';
-import { SERVER_SECRET } from '@config/PocketNet.json';
+import { SERVER_SECRET } from '@config/pocketnet.json';
 
 const VALID_TOKEN = process.env.TOKEN_Online;
 
