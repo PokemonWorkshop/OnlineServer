@@ -1,5 +1,5 @@
 import { readFile, writeFile } from 'fs/promises';
-import { SERVER_SECRET } from '@config/PocketNet.json';
+import { SERVER_SECRET } from '@config/pocketnet.json';
 import { sign } from 'jsonwebtoken';
 
 const TOKEN_KEY = 'TOKEN_Online';
