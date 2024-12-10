@@ -1,12 +1,11 @@
 module UI
   module MysteryGiftMenu
-    class Cursor < Sprite
-      CURSOR_RECT = [[0, 0, 242, 32], [0, 32, 242, 32]]
+    class Cursor < SpriteSheet
 
       # Initialize the Cursor component
       # @param viewport [Viewport]
       def initialize(viewport)
-        super(viewport)
+        super(viewport, 1, 2)
         @index = 0
         # @type [Yuki::Animation::TimedLoopAnimation]
         @animation = nil
@@ -16,7 +15,7 @@ module UI
 
       # Update the animation of the button
       def update
-        @animation&.update
+        @animation.update
       end
 
       # Update the coordinates of the button with an offset
@@ -29,21 +28,15 @@ module UI
       private
 
       def init_sprite
-        set_position(39, 73)
         set_bitmap('mystery_gift/cursor_main', :interface)
-        src_rect.set(*CURSOR_RECT[0])
+        set_position(39, 73)
       end
 
       def init_animation
-        ya = Yuki::Animation
-        anim = ya::TimedLoopAnimation.new(1)
-        anim.play_before(ya.send_command_to(src_rect, :set, *CURSOR_RECT[0]))
-        anim.play_before(ya.wait(1))
-        anim.play_before(ya.send_command_to(src_rect, :set, *CURSOR_RECT[1]))
-        anim.play_before(ya.wait(1))
-        anim.resolver = self
-        anim.start
-        @animation = anim
+        duration = 1
+        @animation = Yuki::Animation::TimedLoopAnimation.new(duration)
+        @animation.parallel_add(Yuki::Animation::DiscreetAnimation.new(duration, self, :sy=, 0, 1))
+        @animation.start
       end
     end
   end

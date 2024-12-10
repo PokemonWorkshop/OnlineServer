@@ -52,7 +52,7 @@ module PFM
     safe_code('Setup Mystery Gift in GameState') do
       on_player_initialize(:mystery_gift) { @mystery_gift = PFM::MysteryGift.new }
       on_expand_global_variables(:mystery_gift) do
-        @mystery_gift.game_state = self
+        #@mystery_gift.game_state = self
       end
     end
   end
