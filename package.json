@@ -19,7 +19,7 @@
     "koa": "^2.15.3",
     "koa-bodyparser": "^4.4.1",
     "koa-router": "^13.0.1",
-    "mongoose": "^8.6.1",
+    "mongoose": "^8.8.4",
     "node-cron": "^3.0.3",
     "socket.io": "^4.7.5",
     "zod": "^3.23.8"
