@@ -1,7 +1,7 @@
 import { configDotenv } from 'dotenv';
 configDotenv();
 import { author, version, name } from '@root/package.json';
-import { SERVER_HOST, SERVER_PORT, SOCKET_PORT } from '@config/pocketNet.json';
+import { SERVER_HOST, SERVER_PORT, SOCKET_PORT } from '@config/pocketnet.json';
 import { connect } from 'mongoose';
 import { resolve } from 'path';
 
