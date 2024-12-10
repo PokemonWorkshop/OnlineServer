@@ -23,4 +23,8 @@ You need to decompile the dependencies included in the [OnlineDep.zip](https://w
 
 `pokemon-studio\resources\psdk-binaries\lib\ruby\3.0.0`
 
+**Graphics resources**
+
+Decompile the contents of the zip folder into the `graphics/interfaces` directory [MysteryGiftResources.zip](https://www.mediafire.com/file/kqv15g86zsz65dp/mystery_gift.zip/file) 
+
 This project is licensed under the MIT License.
