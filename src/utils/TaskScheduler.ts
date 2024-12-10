@@ -6,7 +6,7 @@ import { removeMultiplePlayers } from '@ws/services/PlayerServices';
 import {
   FRIEND_REQ_EXPIRE_DAYS,
   PLAYER_INACTIVITY_DAYS,
-} from '@config/PocketNet.json';
+} from '@config/pocketnet.json';
 
 export default class TaskScheduler {
   constructor() {
