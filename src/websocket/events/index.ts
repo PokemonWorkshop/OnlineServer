@@ -12,6 +12,7 @@ import friendDeclineHandler from './friend/friendDecline';
 import friendRemoveHandler from './friend/friendRemove';
 import friendListHandler from './friend/friendList';
 import friendPendingHandler from './friend/friendPending';
+import giftClaimHandler from './gift/giftClaim';
 import giftClaimByCodeHandler from './gift/giftClaimByCode';
 import giftClaimByIdHandler from './gift/giftClaimById';
 import playerUpdateHandler from './player/playerUpdate';
@@ -26,7 +27,7 @@ const events: EventHandlers = {
   playerCreate: playerCreateHandler,
   playerDelete: playerDeleteHandler,
   playerUpdate: playerUpdateHandler,
-
+  giftClaim: giftClaimHandler,
   giftList: giftListHandler,
   giftClaimByCode: giftClaimByCodeHandler,
   giftClaimById: giftClaimByIdHandler,
