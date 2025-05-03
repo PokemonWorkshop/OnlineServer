@@ -1,6 +1,6 @@
 import http, { IncomingMessage, ServerResponse } from 'http';
 import { parse } from 'url';
-import type { RequestHandler, RouteMap } from '@root/src/types';
+import type { RequestHandler, RouteMap, Middleware } from '@root/src/types';
 
 export class HttpServer {
   private server: http.Server;
@@ -64,15 +64,17 @@ export class HttpServer {
     const composed = [...this.middlewares, handler];
 
     let i = 0;
-    const next = async () => {
-      if (i < composed.length) {
-        const currentHandler = composed[i++];
-        await currentHandler(req, res, next);
+    const next = async (): Promise<void> => {
+      const middleware = composed[i++];
+      if (middleware) {
+        await middleware(req, res, next);
+      } else {
+        await handler(req, res);
       }
     };
 
     try {
-      await handler(req, res);
+      await next();
     } catch (err) {
       console.error(`Error handling ${method} ${pathname}:`, err);
       res.writeHead(500, { 'Content-Type': 'application/json' });
