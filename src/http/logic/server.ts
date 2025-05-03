@@ -5,9 +5,14 @@ import type { RequestHandler, RouteMap } from '@root/src/types';
 export class HttpServer {
   private server: http.Server;
   private routes: RouteMap = {};
+  private middlewares: Middleware[] = [];
 
   constructor(private port: number) {
     this.server = http.createServer(this.handleRequest.bind(this));
+  }
+
+  public use(middleware: Middleware): void {
+    this.middlewares.push(middleware);
   }
 
   public start(): void {
@@ -55,6 +60,16 @@ export class HttpServer {
       res.end(JSON.stringify({ error: 'Route not found' }));
       return;
     }
+
+    const composed = [...this.middlewares, handler];
+
+    let i = 0;
+    const next = async () => {
+      if (i < composed.length) {
+        const currentHandler = composed[i++];
+        await currentHandler(req, res, next);
+      }
+    };
 
     try {
       await handler(req, res);

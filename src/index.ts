@@ -10,6 +10,7 @@ import { resolve } from 'path';
 import http from 'http';
 import { database_connection, database_close } from '@tasks/database'; // 👈 Ajoute database_disconnect
 import routes from '@http/routes';
+import { JsonParser } from '@http/middlewares/json-parser';
 
 const PORT = Number(process.env.SERVER_PORT) || 8080;
 
@@ -24,6 +25,7 @@ async function main() {
     await database_connection();
 
     httpServer = new HttpServer(PORT);
+    httpServer.use(JsonParser);
     httpServer.useRoutes(routes);
     httpServer.attach(rawHttpServer);
 
