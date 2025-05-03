@@ -220,7 +220,7 @@ module Online
         'Connection: Upgrade',
         "Sec-WebSocket-Key: #{key}",
         'Sec-WebSocket-Version: 13',
-        'Authorization: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzZXJ2ZXIiOiJQU0RLX09OTElORV9WMiIsImlhdCI6MTc0MzA4NzkyMn0.p54CBe0LtcIR3HgSg7-CCQUUGeWSUo66_zLwS693Tp0'
+        'Authorization: TOKEN_SERVER'
       ]
     end
 
