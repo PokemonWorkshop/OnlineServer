@@ -47,6 +47,28 @@ export class HttpServer {
     server.on('request', this.handleRequest.bind(this));
   }
 
+  private matchRoute(
+    pathname: string,
+    routePath: string
+  ): { params: Record<string, string> } | null {
+    const routeRegex = routePath
+      .replace(/:(\w+)/g, '([^/]+)') 
+      .replace(/\//g, '\\/');
+    const regex = new RegExp(`^${routeRegex}$`);
+    const match = pathname.match(regex);
+
+    if (!match) return null;
+
+    const keys = routePath.match(/:(\w+)/g) || [];
+    const params: Record<string, string> = {};
+
+    keys.forEach((key, index) => {
+      params[key.substring(1)] = match[index + 1];
+    });
+
+    return { params };
+  }
+
   private async handleRequest(
     req: IncomingMessage,
     res: ServerResponse
@@ -54,7 +76,7 @@ export class HttpServer {
     const method = req.method?.toUpperCase() || '';
     const pathname = parse(req.url || '', true).pathname || '';
 
-    const handler = this.routes[method]?.[pathname];
+    const handler = this.findRoute(method, pathname);
     if (!handler) {
       res.writeHead(404, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Route not found' }));
@@ -80,5 +102,22 @@ export class HttpServer {
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Internal server error' }));
     }
+  }
+
+  private findRoute(method: string, pathname: string): RequestHandler | null {
+    const routePaths = this.routes[method] || {};
+
+    for (const path of Object.keys(routePaths)) {
+      const match = this.matchRoute(pathname, path);
+      if (match) {
+        const handler = routePaths[path];
+        return (req: IncomingMessage, res: ServerResponse) => {
+          req.params = match.params; 
+          return handler(req, res);
+        };
+      }
+    }
+
+    return null;
   }
 }

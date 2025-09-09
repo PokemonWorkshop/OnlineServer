@@ -88,12 +88,12 @@ export type LatencyData = {
  * @typedef Middleware
  * @param req - The incoming HTTP request object.
  * @param res - The outgoing HTTP response object.
- * @param next - A function to invoke the next middleware in the chain. 
+ * @param next - A function to invoke the next middleware in the chain.
  *               Returns a promise that resolves when the next middleware completes.
  * @returns A promise that resolves when the middleware completes, or void if no asynchronous operations are performed.
  */
 export type Middleware = (
   req: IncomingMessage,
   res: ServerResponse,
-  next: () => Promise<voi>
-): Promise<void> | void;
+  next: () => Promise<void>
+) => Promise<void> | void;
