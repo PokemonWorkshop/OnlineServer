@@ -1,0 +1,41 @@
+services:
+  online:
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    build:
+      context: .
+      dockerfile: Dockerfile_Server
+    networks:
+      - shared_network
+    ports:
+      - "8080:8080"
+    restart: on-failure:5
+    volumes:
+      - online_data:/usr/src/app          # Docker-managed volume for app data
+
+  mongodb:
+    build:
+      context: .
+      dockerfile: Dockerfile_MongoDB
+    networks:
+      - shared_network
+    ports:
+      - "27017:27017"
+    env_file:
+      - .env
+    volumes:
+      - mongo_data:/data/db            # Docker-managed volume for MongoDB
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "localhost:27017/psdk_online", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 30s
+      retries: 5
+
+networks:
+  shared_network:
+    driver: bridge
+
+volumes:
+  mongo_data:                           # Docker-managed persistent volume
+  online_data:                          # Docker-managed persistent volume for app
