@@ -11,7 +11,7 @@
   "keywords": [],
   "author": "Ota",
   "license": "MIT",
-  "description": "The Online Server service provides the foundation for creating an online mode for a video game. It offers an API for managing and retrieving information, along with a WebSocket (WS) communication protocol to handle real-time interactions with the game.",
+  "description": "PSDK-Online offers a dynamic and interactive environment that allows PSDK games players to connect",
   "devDependencies": {
     "@types/jsonwebtoken": "^9.0.8",
     "@types/mongoose": "^5.11.96",
