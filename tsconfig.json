@@ -16,10 +16,14 @@
       "@src/*": ["src/*"],
       "@models/*": ["src/models/*"],
       "@config/*": ["config/*"],
-      "@api/*": ["src/api/*"],
-      "@ws/*": ["src/ws/*"]  
+      "@ws/*": ["src/websocket/*"],
+      "@events/*": ["src/websocket/events/*"],
+      "@types/*": ["src/types/*"],
+      "@logic/*": ["src/websocket/logic/*"],
+      "@tasks/*": ["src/tasks/*"],
+      "@http/*": ["src/http/*"],
     }
   },
-  "include": ["src/**/*.ts", "index.ts"],
-  "exclude": ["node_modules"]
+  "include": ["src", "src/**/*.ts", "src/index.ts"],
+  "exclude": ["node_modules", "dist"]
 }

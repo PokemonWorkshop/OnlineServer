@@ -1,8 +1,9 @@
-# PocketNet
+
+# PSDK-Online
 
 ## Description
 
-**PocketNet** is a multiplayer server dedicated to the PSDK project, where players can send friend requests, participate in real-time battles, trade creatures, and discover surprise gifts. Using WebSockets and MongoDB, PocketNet offers a dynamic and interactive environment that allows players to connect.
+**PSDK-Online** is a multiplayer server dedicated to the PSDK project, where players can send friend requests, participate in real-time battles, trade creatures, and discover surprise gifts. Using WebSockets and MongoDB, PSDK-Online offers a dynamic and interactive environment that allows players to connect.
 
 ## Features
 
@@ -31,7 +32,8 @@ Ensure MongoDB is running before starting the application.
 
 ### Configuration
 
-1. **Modify a `.env` File**: In the project root, create a file named `.env` and add the following environment variables:
+1. **Modify a `.env File`**: In the project root, rename the file example.env to .env and add the following variables:
+
 
    ```
    # Database configuration
@@ -40,20 +42,9 @@ Ensure MongoDB is running before starting the application.
    DB_PORT=27017
    DB_USER=
    DB_PSWD=
-
-   # Token server
    ```
 
 2. **Set Up Environment Variables**: Make sure to replace the placeholder values with your actual configuration as needed.
-
-3. **Modify the Key `SERVER_SECRET` in the File `config/pocketnet.json`**:
-   - Open the file `config/pocketnet.json`.
-   - Update the value of `SERVER_SECRET` with a secure random string, e.g:
-   ```json
-   {
-     "SERVER_SECRET": "pocket_net_api"
-   }
-   ```
 
 ## Usage
 
@@ -63,7 +54,20 @@ To start the application, run:
 npm start
 ```
 
-This will start the server and make it available on the port specified in your `.env` file.
+Modify the `SERVER_PORT` variable in your `.env` file to specify the port on which the server will be available. By default, it starts on port `8080`.
+
+---
+
+### 📚 Generate Documentation
+
+To install and generate project documentation with TypeDoc, use:
+
+```bash
+npm run install:doc
+npm run generate:doc
+```
+
+This will generate documentation output into the `docs/` folder, based on your TypeScript source files.
 
 ## License
 

@@ -1,40 +1,31 @@
 {
-  "name": "PocketNet",
-  "version": "0.4.1",
-  "description": "The PocketNet service provides the foundation for creating an online mode for a video game. It offers an API for managing and retrieving information, along with a WebSocket (WS) communication protocol to handle real-time interactions with the game.",
-  "main": "index.ts",
-  "repository": "//",
-  "author": "Ota",
-  "license": "MIT",
-  "private": true,
+  "name": "psdk_online",
+  "version": "0.0.2",
+  "main": "src/index.ts",
   "type": "commonjs",
   "scripts": {
-    "start": "ts-node -r tsconfig-paths/register index.ts",
-    "prod": "nodemon -r tsconfig-paths/register index.ts"
+    "start": "ts-node -r tsconfig-paths/register src/index.ts",
+    "install:doc": "npm install --save-dev typedoc jsdoc tsdoc",
+    "generate:doc": "npx typedoc --out docs \"src/**/*.ts\""
   },
-  "dependencies": {
-    "@types/koa-bodyparser": "5.0.2",
-    "dotenv": "^16.4.5",
-    "jsonwebtoken": "^9.0.2",
-    "koa": "^2.15.3",
-    "koa-bodyparser": "^4.4.1",
-    "koa-router": "^13.0.1",
-    "mongoose": "^8.8.4",
-    "node-cron": "^3.0.3",
-    "socket.io": "^4.7.5",
-    "zod": "^3.23.8"
-  },
+  "keywords": [],
+  "author": "Ota",
+  "license": "MIT",
+  "description": "PSDK-Online offers a dynamic and interactive environment that allows PSDK games players to connect",
   "devDependencies": {
-    "@types/jsonwebtoken": "^9.0.6",
-    "@types/koa": "^2.15.0",
-    "@types/koa-router": "^7.4.8",
-    "@types/mongoose": "5.11.96",
-    "@types/node": "^22.5.4",
-    "@types/node-cron": "^3.0.11",
-    "@types/socket.io": "3.0.1",
-    "nodemon": "^3.1.4",
+    "@types/jsonwebtoken": "^9.0.8",
+    "@types/mongoose": "^5.11.96",
+    "@types/node": "^24.3.1",
+    "@types/ws": "^8.5.13",
+    "dotenv": "^17.0.1",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
-    "typescript": "^5.5.4"
+    "typescript": "^5.7.3"
+  },
+  "dependencies": {
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.9.6",
+    "ws": "^8.18.0",
+    "zod": "^3.24.3"
   }
 }
