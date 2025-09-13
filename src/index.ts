@@ -8,7 +8,7 @@ import { Gift } from '@models/gift';
 import { ensureToken } from '@tasks/token';
 import { resolve } from 'path';
 import http from 'http';
-import { database_connection, database_close } from '@tasks/database'; // 👈 Ajoute database_disconnect
+import { database_connection, database_close } from '@tasks/database'; // 👈 Add database_disconnect
 import routes from '@http/routes';
 import { JsonParser } from '@http/middlewares/jsonParser';
 import { AuthMiddleware } from '@http/middlewares/authMiddleware';
