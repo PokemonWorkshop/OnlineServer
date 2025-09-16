@@ -7,19 +7,32 @@ services:
       context: .
       dockerfile: Dockerfile_Server
     networks:
-      - shared_network
+      - online_server_network
     ports:
       - "8080:8080"
+    environment:
+      - DB_NAME=${DB_NAME}
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_USER=${DB_USER}
+      - DB_PSWD=${DB_PSWD}
+      - SERVER_PORT=${SERVER_PORT}
+      - DAYS_PLAYER_INACTIVE=${DAYS_PLAYER_INACTIVE}
+      - DAYS_FRIEND_INACTIVE_REQUEST=${DAYS_FRIEND_INACTIVE_REQUEST}
+      - MAX_LEVEL=${MAX_LEVEL}
     restart: on-failure:5
     volumes:
       - online_data:/usr/src/app          # Docker-managed volume for app data
+    profiles:
+      - default
+      - full
 
   mongodb:
     build:
       context: .
       dockerfile: Dockerfile_MongoDB
     networks:
-      - shared_network
+      - online_server_network
     ports:
       - "27017:27017"
     env_file:
@@ -31,9 +44,11 @@ services:
       interval: 10s
       timeout: 30s
       retries: 5
+    profiles:
+      - full
 
 networks:
-  shared_network:
+  online_server_network:
     driver: bridge
 
 volumes:
