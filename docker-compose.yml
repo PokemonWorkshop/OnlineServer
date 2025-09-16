@@ -25,6 +25,7 @@ services:
       - default
 
   online_full:
+    container_name: online_full
     extends: online
     depends_on:
       mongodb:
