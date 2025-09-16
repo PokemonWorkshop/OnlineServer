@@ -1,28 +1,28 @@
 services:
-  online:
-    container_name: online
-    build:
-      context: .
-      dockerfile: Dockerfile_Server
-    networks:
-      - online_server_network
-    ports:
-      - "8181:8181"
-    environment:
-      - DB_NAME=${DB_NAME}
-      - DB_HOST=${DB_HOST}
-      - DB_PORT=${DB_PORT}
-      - DB_USER=${DB_USER}
-      - DB_PSWD=${DB_PSWD}
-      - SERVER_PORT=${SERVER_PORT}
-      - DAYS_PLAYER_INACTIVE=${DAYS_PLAYER_INACTIVE}
-      - DAYS_FRIEND_INACTIVE_REQUEST=${DAYS_FRIEND_INACTIVE_REQUEST}
-      - MAX_LEVEL=${MAX_LEVEL}
-    restart: on-failure:5
-    volumes:
-      - online_data:/usr/src/app
-    profiles:
-      - default
+#   online:
+#     container_name: online
+#     build:
+#       context: .
+#       dockerfile: Dockerfile_Server
+#     networks:
+#       - online_server_network
+#     ports:
+#       - "8181:8181"
+#     environment:
+#       - DB_NAME=${DB_NAME}
+#       - DB_HOST=${DB_HOST}
+#       - DB_PORT=${DB_PORT}
+#       - DB_USER=${DB_USER}
+#       - DB_PSWD=${DB_PSWD}
+#       - SERVER_PORT=${SERVER_PORT}
+#       - DAYS_PLAYER_INACTIVE=${DAYS_PLAYER_INACTIVE}
+#       - DAYS_FRIEND_INACTIVE_REQUEST=${DAYS_FRIEND_INACTIVE_REQUEST}
+#       - MAX_LEVEL=${MAX_LEVEL}
+#     restart: on-failure:5
+#     volumes:
+#       - online_data:/usr/src/app
+#     profiles:
+#       - default
 
   online_full:
     container_name: online
@@ -49,8 +49,8 @@ services:
     depends_on:
       mongodb:
         condition: service_healthy
-    profiles:
-      - full
+    # profiles:
+    #   - full
 
   mongodb:
     container_name: mongodb
@@ -74,8 +74,8 @@ services:
       interval: 10s
       timeout: 30s
       retries: 5
-    profiles:
-      - full
+    # profiles:
+    #   - full
 
 networks:
   online_server_network:
