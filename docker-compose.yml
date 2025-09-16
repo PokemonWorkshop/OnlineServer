@@ -1,5 +1,6 @@
 services:
   online:
+    container_name: online
     build:
       context: .
       dockerfile: Dockerfile_Server
@@ -32,6 +33,7 @@ services:
       - full
 
   mongodb:
+    container_name: mongodb
     build:
       context: .
       dockerfile: Dockerfile_MongoDB
