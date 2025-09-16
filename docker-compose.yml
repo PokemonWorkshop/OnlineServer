@@ -1,8 +1,5 @@
 services:
   online:
-    depends_on:
-      mongodb:
-        condition: service_healthy
     build:
       context: .
       dockerfile: Dockerfile_Server
@@ -22,9 +19,16 @@ services:
       - MAX_LEVEL=${MAX_LEVEL}
     restart: on-failure:5
     volumes:
-      - online_data:/usr/src/app          # Docker-managed volume for app data
+      - online_data:/usr/src/app
     profiles:
       - default
+
+  online_full:
+    extends: online
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    profiles:
       - full
 
   mongodb:
@@ -35,10 +39,14 @@ services:
       - online_server_network
     ports:
       - "27017:27017"
-    env_file:
-      - .env
+    environment:
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PSWD=${DB_PSWD}
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_INITDB_ROOT_USERNAME}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_INITDB_ROOT_PASSWORD}
     volumes:
-      - mongo_data:/data/db            # Docker-managed volume for MongoDB
+      - mongo_data:/data/db
     healthcheck:
       test: ["CMD", "mongosh", "--quiet", "localhost:27017/psdk_online", "--eval", "db.adminCommand('ping')"]
       interval: 10s
@@ -52,5 +60,5 @@ networks:
     driver: bridge
 
 volumes:
-  mongo_data:                           # Docker-managed persistent volume
-  online_data:                          # Docker-managed persistent volume for app
+  mongo_data:
+  online_data:
