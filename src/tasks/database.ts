@@ -1,4 +1,4 @@
-import { connect, connection } from 'mongoose';
+import mongoose, { connect, connection } from 'mongoose';
 
 /**
  * Establishes a connection to the MongoDB database using environment variables for configuration.
@@ -41,6 +41,7 @@ const database_connection = async () => {
         username: DB_USER,
         password: DB_PSWD,
       },
+      authSource: DB_NAME,
       retryWrites: true,
       w: 'majority',
       connectTimeoutMS: 10000,
