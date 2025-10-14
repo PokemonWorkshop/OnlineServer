@@ -1,5 +1,4 @@
 import 'dotenv/config';
-import '@tasks/logger';
 
 import { HttpServer } from '@http/logic/server';
 import { Server } from '@logic/server';
@@ -9,9 +8,14 @@ import { ensureToken } from '@tasks/token';
 import { resolve } from 'path';
 import http from 'http';
 import { database_connection, database_close } from '@tasks/database'; // 👈 Ajoute database_disconnect
-import routes from '@http/routes';
 import { JsonParser } from '@http/middlewares/jsonParser';
 import { AuthMiddleware } from '@http/middlewares/authMiddleware';
+
+import './http/routes/index';
+import { routes } from './http/logic/routes';
+
+console.log(routes);
+import '@tasks/logger';
 
 const PORT = Number(process.env.SERVER_PORT) || 8080;
 
