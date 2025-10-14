@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import createEventHandler from '@logic/createEventHandler';
 import { server } from '@root/src';
-import { Gts } from '@models/gts';
+import { Gts } from '@root/src/models/gts/gts.model';
 
 /**
  * Schema for GTS Add Data.
@@ -28,7 +28,13 @@ import { Gts } from '@models/gts';
  * @property {number} [require_condition.nature] - The nature that is forbidden (optional).
  */
 const GtsAddData = z.object({
-  creature: z.record(z.string(), z.unknown()),
+  creature: z.object({
+    id: z.string(),
+    level: z.number(),
+    shiny: z.boolean(),
+    form: z.number(),
+    nature: z.number(),
+  }).passthrough(),
   require_conditions: z.object({
     id: z.string(),
     level: z.object({ min: z.number(), max: z.number().optional() }),

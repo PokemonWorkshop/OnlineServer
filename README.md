@@ -69,6 +69,10 @@ npm run generate:doc
 
 This will generate documentation output into the `docs/` folder, based on your TypeScript source files.
 
+### 📚 Overall Documentation
+
+[Les requetes socket](/docs/socket.md)
+
 ## License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.

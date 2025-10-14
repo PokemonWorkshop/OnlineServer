@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import createEventHandler from '@logic/createEventHandler';
-import { Player } from '@models/player';
+import { Player } from '@root/src/models/player/player.model';
 
 const PlayerCreateData = z.object({
   id: z.string(),
