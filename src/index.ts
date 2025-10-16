@@ -2,8 +2,6 @@ import 'dotenv/config';
 
 import { HttpServer } from '@http/logic/server';
 import { Server } from '@logic/server';
-import { Player } from '@models/player';
-import { Gift } from '@models/gift';
 import { ensureToken } from '@tasks/token';
 import { resolve } from 'path';
 import http from 'http';
@@ -13,9 +11,9 @@ import { AuthMiddleware } from '@http/middlewares/authMiddleware';
 
 import './http/routes/index';
 import { routes } from './http/logic/routes';
-
-console.log(routes);
 import '@tasks/logger';
+import { Player } from './models/player/player.model';
+import { Gift } from './models/gift/gift.model';
 
 const PORT = Number(process.env.SERVER_PORT) || 8080;
 

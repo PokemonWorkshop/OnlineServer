@@ -1,4 +1,4 @@
-import { Gift } from '@root/src/models/gift';
+import { Gift } from '@root/src/models/gift/gift.model';
 import { registerRoute } from '../../logic/routes';
 
 // GET all gifts

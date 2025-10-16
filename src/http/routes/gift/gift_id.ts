@@ -1,5 +1,5 @@
+import { Gift } from '@root/src/models/gift/gift.model';
 import { registerRoute } from '../../logic/routes';
-import { Gift } from '@root/src/models/gift';
 
 // GET gift by ID
 registerRoute('GET', '/api/gift/:id', async (req, res) => {

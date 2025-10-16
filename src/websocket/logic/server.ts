@@ -8,8 +8,8 @@ import {
 } from '@src/types';
 import events from '@events/index';
 import { verify } from 'jsonwebtoken';
-import { Player } from '@root/src/models/player';
 import { Server as HttpNodeServer } from 'http';
+import { Player } from '@root/src/models/player/player.model';
 
 const SECRET_KEY = process.env.SECRET_KEY as string;
 

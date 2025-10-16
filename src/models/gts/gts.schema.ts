@@ -1,109 +1,7 @@
-import { model, Schema, Model } from 'mongoose';
+import { Schema } from 'mongoose';
 import { GtsBlacklist } from './gtsIBlacklist';
-/**
- * Interface representing a GTS (Global Trade Station) entry.
- *
- * @interface IGts
- * @extends {Document}
- *
- * @property {string} id - Unique identifier for the GTS entry.
- * @property {string} player_id - Identifier for the player associated with the GTS entry.
- * @property {Object} creature - Details of the creature being traded.
- * @property {string} creature.id - id of the creature.
- * @property {number} creature.level - Level of the creature.
- * @property {boolean} creature.shiny - Indicates if the creature is shiny.
- * @property {number} creature.form - Form of the creature.
- * @property {number} creature.nature - Nature of the creature.
- * @property {Record<string, unknown>} creature.data - Additional data related to the creature.
- * @property {Object} require_conditions - Conditions that Require the trade.
- * @property {string} require_conditions.id - id that are required.
- * @property {Object} require_conditions.level - Level range that is required.
- * @property {number} require_conditions.level.min - Minimum level that is required.
- * @property {number} require_conditions.level.max - Maximum level that is required.
- * @property {boolean} require_conditions.shiny - Indicates if shiny creatures are required.
- * @property {number} require_conditions.form - Form that is required.
- * @property {number} require_conditions.nature - Nature that is required.
- * @property {Date} createdAt - Date when the GTS entry was created.
- */
-interface IGts extends Document {
-  id: string;
-  player_id: string;
-  creature: Record<string, unknown>;
-  require_conditions: {
-    id: string;
-    level: { min: number; max?: number };
-    shiny?: boolean;
-    form?: number;
-    nature?: number;
-  };
-  status: 'deposited' | 'retrieved' | 'traded';
-  createdAt: Date;
-}
-
-interface IGtsModel extends Model<IGts> {
-  /**
-   * Adds a creature to the Global Trade Station (GTS) for a player.
-   *
-   * @param player_id - The ID of the player adding the creature to the GTS.
-   * @param creature - The creature to be added to the GTS.
-   * @param require_conditions - Conditions under which the creature cannot be traded.
-   * @returns An object indicating the success of the operation and an optional message.
-   *
-   * @remarks
-   * This function checks if the creature is blacklisted before adding it to the GTS.
-   * If the creature is blacklisted, the function returns a failure message.
-   * Otherwise, it saves the new GTS entry and returns a success message.
-   */
-  addToGTS(
-    player_id: string,
-    creature: IGts['creature'],
-    require_conditions: IGts['require_conditions']
-  ): Promise<{ success: boolean; message?: string }>;
-
-  /**
-   * Removes a creature from the Global Trade System (GTS) for a given player.
-   *
-   * @param player_id - The unique identifier of the player.
-   * @returns A promise that resolves to an object indicating the success status and an optional message.
-   */
-  removeFromGTS(
-    player_id: string
-  ): Promise<{ success: boolean; message?: string }>;
-
-  /**
-   * Executes a trade between two players, where player A offers a creature to player B.
-   * The trade is subject to certain conditions that must be met by the offered creature.
-   *
-   * @param playerA_id - The ID of player A who is offering a creature.
-   * @param playerB_id - The ID of player B who will receive the offered creature.
-   * @param offeredCreature - The creature offered by player A for the trade.
-   * @returns A promise that resolves to an object indicating the success of the trade,
-   *          an optional message, and the creature received by player B if the trade is successful.
-   */
-  tradeWithOffer(
-    playerA_id: string,
-    offeredCreature: IGts['creature']
-  ): Promise<{
-    success: boolean;
-    message?: string;
-    receivedCreature?: IGts['creature'];
-  }>;
-
-  getPlayerCreatures(
-    player_id: string
-  ): Promise<{ deposited: IGts[]; traded: IGts[]; retrieved: IGts[] }>;
-
-  getAllCreatures(filters: {
-    id?: string;
-    level?: {
-      min?: number;
-      max?: number;
-    };
-    shiny?: boolean;
-    form?: number;
-    nature?: number;
-  }): Promise<IGts[]>;
-}
+import { ICreature } from './creature.model';
+import { IGts } from './gts.model';
 
 /**
  * Schema definition for the GTS (Global Trade Station) model.
@@ -128,7 +26,7 @@ interface IGtsModel extends Model<IGts> {
  * @property {number} require_conditions.nature - required nature, required.
  * @property {Date} createdAt - Timestamp of when the entry was created, defaults to current date.
  */
-const SGts = new Schema<IGts>({
+export const SGts = new Schema<IGts>({
   id: {
     type: String,
     default: () => `gts-${Math.random().toString(36).substring(2, 10)}`,
@@ -158,17 +56,9 @@ const SGts = new Schema<IGts>({
   createdAt: { type: Date, default: Date.now },
 });
 
-type CreatureType = {
-  id: string;
-  level: number;
-  shiny: boolean;
-  form: number;
-  nature: number;
-};
-
 SGts.statics.addToGTS = async function (
   player_id: string,
-  creature: CreatureType,
+  creature: ICreature,
   require_conditions: IGts['require_conditions']
 ): Promise<{ success: boolean; message?: string }> {
   try {
@@ -241,7 +131,7 @@ SGts.statics.removeFromGTS = async function (
 
 SGts.statics.tradeWithOffer = async function (
   playerA_id: string,
-  offeredCreature: CreatureType
+  offeredCreature: ICreature
 ): Promise<{
   success: boolean;
   message?: string;
@@ -368,15 +258,3 @@ SGts.statics.getAllCreatures = async function (filters: {
   }
 };
 
-/**
- * Represents the Gts model.
- *
- * This model is created using the `model` function from the Mongoose library.
- * It uses the `IGts` interface for the document shape and the `IGtsModel` interface for the model's static methods.
- * The schema used for this model is `SGts`.
- *
- * @type {Model<IGts, IGtsModel>}
- */
-const Gts = model<IGts, IGtsModel>('Gts', SGts);
-
-export { Gts, IGts };

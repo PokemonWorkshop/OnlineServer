@@ -1,7 +1,7 @@
 import { server } from '@root/src';
-import { Player } from '@root/src/models/player';
 import { z } from 'zod';
 import createEventHandler from '@logic/createEventHandler';
+import { Player } from '@root/src/models/player/player.model';
 
 /**
  * Schema definition for validating player update data.

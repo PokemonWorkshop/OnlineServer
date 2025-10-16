@@ -1,4 +1,4 @@
-import { Player } from '@root/src/models/player';
+import { Player } from '@root/src/models/player/player.model';
 import { registerRoute } from '../../logic/routes';
 
 // GET all players
