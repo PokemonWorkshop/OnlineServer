@@ -3,12 +3,6 @@ import { Gift } from '@root/src/models/gift';
 import { Player } from '@root/src/models/player';
 import type { RouteMap } from '@root/src/types';
 
-declare module 'http' {
-  interface IncomingMessage {
-    params: { [key: string]: string | undefined };
-  }
-}
-
 const routes: RouteMap = {
   GET: {
     '/api/status': async (_, res) => {
@@ -89,11 +83,8 @@ const routes: RouteMap = {
   POST: {
     '/api/gift': async (req, res) => {
       try {
-        const buffers: Buffer[] = [];
-        for await (const chunk of req) {
-          buffers.push(chunk);
-        }
-        const body = JSON.parse(Buffer.concat(buffers).toString());
+        const body = req.body;
+        console.log(body);
 
         const gift = new Gift(body);
         await gift.save();
