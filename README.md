@@ -1,7 +1,3 @@
-<<<<<<< HEAD
-
-=======
->>>>>>> 05a1433d25b4396073e24b114168a8371c871ba8
 # PSDK-Online
 
 ## Description
