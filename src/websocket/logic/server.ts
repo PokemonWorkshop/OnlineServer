@@ -43,6 +43,7 @@ export class Server {
   private eventHandlers: EventHandlers;
   private clients: Map<string, WebSocket> = new Map();
   private latencies: Map<string, LatencyData> = new Map();
+  private roomManager = new RoomManager();
 
   /**
    * Creates an instance of the WebSocket server and sets up event listeners for client connections.
@@ -278,8 +279,45 @@ export class Server {
 
     const start = Date.now();
 
-    const handler = this.eventHandlers[event];
+    switch (event) {
+      case 'create_room': {
+        const room = this.roomManager.createRoom(playerId);
+        this.emit(ws, 'room_created', { payload: room });
+        break;
+      }
+      case 'join_room': {
+        const roomId = (data as { roomId: string }).roomId;
+        if (typeof roomId !== 'string') {
+          this.emit(ws, 'error', { error: 'INVALID_ROOM_ID' });
+          return;
+        }
 
+        const room = this.roomManager.joinRoom(playerId, roomId);
+        if (!room) {
+          this.emit(ws, 'error', { error: 'ROOM_FULL_OR_NOT_FOUND' });
+        } else {
+          room.players.forEach((id) => {
+            const clientWs = this.getClientWebsocket(id);
+            if (clientWs)
+              this.emit(clientWs, 'room_updated', { payload: room });
+          });
+        }
+        break;
+      }
+      case 'leave_room': {
+        const room = this.roomManager.getRoomByPlayer(playerId);
+        this.roomManager.leaveRoom(playerId);
+        if (room) {
+          room.players.forEach((id) => {
+            const clientWs = this.getClientWebsocket(id);
+            if (clientWs) this.emit(clientWs, 'room_updated', room);
+          });
+        }
+        break;
+      }
+    }
+
+    const handler = this.eventHandlers[event];
     if (handler) {
       try {
         await handler(data, ws);
@@ -291,7 +329,7 @@ export class Server {
       } catch (error) {
         console.error(`Error handling event ${event}:`, error);
       }
-    } else {
+    } else if (!['create_room', 'join_room', 'leave_room'].includes(event)) {
       console.warn(`No handler for event: ${event}`);
     }
   }
