@@ -4,7 +4,7 @@ import { registerRoute } from '../../logic/routes';
 // CREATE gift
 registerRoute('POST', '/api/gift', async (req, res) => {
   try {
-    const body = req.body as Record<string, unknown>;
+    const body = req.body;
     const gift = new Gift(body);
     await gift.save();
 
