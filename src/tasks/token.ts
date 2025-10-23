@@ -40,7 +40,18 @@ function generateRandomKey(): string {
  */
 async function ensureToken(pathDir: string): Promise<void> {
   try {
-    const envFileContent = await readFile(pathDir, 'utf-8');
+    let envFileContent: string;
+    try {
+      envFileContent = await readFile(pathDir, 'utf-8');
+    } catch (err: any) {
+      if (err.code === 'ENOENT') {
+        // .env file not found → start with empty
+        envFileContent = '';
+      } else {
+        throw err;
+      }
+    }
+
     let tokenUpdated = false;
     let updatedEnvContent = envFileContent;
 
@@ -51,7 +62,7 @@ async function ensureToken(pathDir: string): Promise<void> {
       tokenUpdated = true;
 
       const tokenPatternServer = new RegExp(`^${TOKEN_SERVER_KEY}=.*$`, 'm');
-      if (tokenPatternServer.test(envFileContent)) {
+      if (tokenPatternServer.test(updatedEnvContent)) {
         updatedEnvContent = updatedEnvContent.replace(
           tokenPatternServer,
           `${TOKEN_SERVER_KEY}=${tokenServer}`
@@ -60,7 +71,6 @@ async function ensureToken(pathDir: string): Promise<void> {
         updatedEnvContent += `\n${TOKEN_SERVER_KEY}=${tokenServer}`;
       }
 
-      // Update the SECRET_KEY line, or add if it doesn't exist
       const secretKeyPattern = /^SECRET_KEY=.*/m;
       if (secretKeyPattern.test(updatedEnvContent)) {
         updatedEnvContent = updatedEnvContent.replace(
@@ -88,7 +98,6 @@ async function ensureToken(pathDir: string): Promise<void> {
         updatedEnvContent += `\n${TOKEN_API_KEY}=${tokenApi}`;
       }
 
-      // Update the SECRET_KEY_API line, or add if it doesn't exist
       const secretKeyApiPattern = /^SECRET_KEY_API=.*/m;
       if (secretKeyApiPattern.test(updatedEnvContent)) {
         updatedEnvContent = updatedEnvContent.replace(
@@ -100,11 +109,10 @@ async function ensureToken(pathDir: string): Promise<void> {
       }
     }
 
-    // Write the updated content to the .env file
+    // Write the updated content to the .env file (even if it didn’t exist before)
     if (tokenUpdated) {
-      await writeFile(pathDir, updatedEnvContent, 'utf8');
+      await writeFile(pathDir, updatedEnvContent.trimStart(), 'utf8');
 
-      // Notify about the update
       console.warn(`
         =======================================================================
         ⚠️  Important Notice: New authentication tokens have been generated. ⚠️

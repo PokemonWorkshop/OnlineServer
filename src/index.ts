@@ -6,14 +6,17 @@ import { ensureToken } from '@tasks/token';
 import { resolve } from 'path';
 import http from 'http';
 import { database_connection, database_close } from '@tasks/database'; // 👈 Ajoute database_disconnect
-import { JsonParser } from '@http/middlewares/jsonParser';
-import { AuthMiddleware } from '@http/middlewares/authMiddleware';
 
 import './http/routes/index';
 import { routes } from './http/logic/routes';
 import '@tasks/logger';
 import { Player } from './models/player/player.model';
 import { Gift } from './models/gift/gift.model';
+
+import '@tasks/logger';
+
+import { JsonParser } from '@http/middlewares/jsonParser';
+import { AuthMiddleware } from '@http/middlewares/authMiddleware';
 
 const PORT = Number(process.env.SERVER_PORT) || 8080;
 

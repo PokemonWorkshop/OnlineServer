@@ -11,7 +11,7 @@
   "keywords": [],
   "author": "Ota",
   "license": "MIT",
-  "description": "A random project for randoms",
+  "description": "PSDK-Online offers a dynamic and interactive environment that allows PSDK games players to connect",
   "devDependencies": {
     "@types/jsonwebtoken": "^9.0.8",
     "@types/mongoose": "^5.11.96",
