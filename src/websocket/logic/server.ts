@@ -10,10 +10,12 @@ import events from '@events/index';
 import { verify } from 'jsonwebtoken';
 import { Player } from '@root/src/models/player';
 import { Server as HttpNodeServer } from 'http';
+import { ROOM_EVENTS, ROOM_EVENT_LIST, ROOM_OUTBOUND_EVENTS } from '@events/room-events';
+import { ERROR_CODES } from '@events/error-codes';
+import { RoomManager } from './roomManager';
+import { emit, emitError } from './emitter';
 
 const SECRET_KEY = process.env.SECRET_KEY as string;
-
-const PING_LATENCY = 10000; // 10 seconds
 
 /**
  * The OServer class provides a WebSocket server implementation that allows
@@ -34,9 +36,6 @@ const PING_LATENCY = 10000; // 10 seconds
  *
  * server.broadcast('announcement', 'Server is live!');
  * ```
- *
- * @public
- * @author Ota
  */
 export class Server {
   private wss: WebSocketServer;
@@ -95,7 +94,7 @@ export class Server {
 
         const error =
           errorData[
-            !playerId ? 'ERR_MISSING_PLAYER_ID' : 'ERR_ALREADY_CONNECTED'
+          !playerId ? 'ERR_MISSING_PLAYER_ID' : 'ERR_ALREADY_CONNECTED'
           ];
 
         return this.rejectConnection(ws, error.code, error.message);
@@ -129,31 +128,6 @@ export class Server {
    */
   public on(event: string, handler: EventHandler): void {
     this.eventHandlers[event] = handler;
-  }
-
-  /**
-   * Emits an event to the specified WebSocket connection.
-   *
-   * @param ws - The WebSocket connection to send the event to.
-   * @param event - The name of the event to emit.
-   * @param data - The data to send with the event.
-   */
-  public emit(ws: WebSocket, event: string, data: EventResponse): void {
-    ws.send(JSON.stringify({ event, data }));
-  }
-
-  /**
-   * Broadcasts an event with the given data to all connected WebSocket clients.
-   *
-   * @param event - The name of the event to broadcast.
-   * @param data - The data to send with the event.
-   */
-  public broadcast(event: string, data: EventResponse): void {
-    for (const client of this.wss.clients) {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(JSON.stringify({ event, data }));
-      }
-    }
   }
 
   /**
@@ -280,37 +254,59 @@ export class Server {
     const start = Date.now();
 
     switch (event) {
-      case 'create_room': {
-        const room = this.roomManager.createRoom(playerId);
-        this.emit(ws, 'room_created', { payload: room });
+      case ROOM_EVENTS.CREATE: {
+        const maxPlayers = (data as { maxPlayers: number }).maxPlayers ?? 4;
+        const room = this.roomManager.createRoom(playerId, maxPlayers);
+        emit(ws, ROOM_OUTBOUND_EVENTS.CREATED, { payload: room });
         break;
       }
-      case 'join_room': {
+      case ROOM_EVENTS.CLOSE: {
+        const room = this.roomManager.getRoomByPlayer(playerId);
+        if (room) {
+          this.roomManager.closeRoom(room.id);
+          const clientWs = this.getClientWebsocket(room.players[0]);
+          if (clientWs) {
+            emit(clientWs, ROOM_OUTBOUND_EVENTS.CLOSED, { payload: room });
+            console.log(`Room ${room.id} closed by player ${room.players[0]}`);
+          }
+        }
+        break;
+      }
+      case ROOM_EVENTS.JOIN: {
         const roomId = (data as { roomId: string }).roomId;
         if (typeof roomId !== 'string') {
-          this.emit(ws, 'error', { error: 'INVALID_ROOM_ID' });
-          return;
+          emitError(ws, ERROR_CODES.INVALID_ROOM_ID);
+          console.warn(`Invalid room ID: ${roomId}`);
+          break;
         }
 
         const room = this.roomManager.joinRoom(playerId, roomId);
         if (!room) {
-          this.emit(ws, 'error', { error: 'ROOM_FULL_OR_NOT_FOUND' });
+          emitError(ws, ERROR_CODES.ROOM_FULL_OR_NOT_FOUND);
+          console.warn(`Room ${roomId} not found or full`);
         } else {
-          room.players.forEach((id) => {
+          room.players.forEach((id: string) => {
             const clientWs = this.getClientWebsocket(id);
-            if (clientWs)
-              this.emit(clientWs, 'room_updated', { payload: room });
+            if (clientWs) {
+              emit(clientWs, ROOM_OUTBOUND_EVENTS.UPDATED, {
+                payload: room,
+              });
+              console.log(`Player ${id} joined room ${roomId}`);
+            }
           });
         }
         break;
       }
-      case 'leave_room': {
+      case ROOM_EVENTS.LEAVE: {
         const room = this.roomManager.getRoomByPlayer(playerId);
         this.roomManager.leaveRoom(playerId);
         if (room) {
-          room.players.forEach((id) => {
+          room.players.forEach((id: string) => {
             const clientWs = this.getClientWebsocket(id);
-            if (clientWs) this.emit(clientWs, 'room_updated', room);
+            if (clientWs)
+              emit(clientWs, ROOM_OUTBOUND_EVENTS.UPDATED, {
+                payload: room,
+              });
           });
         }
         break;
@@ -318,6 +314,21 @@ export class Server {
     }
 
     const handler = this.eventHandlers[event];
+    try {
+      if (handler) {
+        await handler(data, ws);
+      } else if (!ROOM_EVENT_LIST.includes(event)) {
+        console.warn(`No handler for event: ${event}`);
+      }
+    } catch (error) {
+      console.error(`Error handling event ${event}:`, error);
+    } finally {
+      const latency = Date.now() - start;
+      this.latencies.set(playerId, {
+        lastPing: Date.now(),
+        latency,
+      });
+    }
     if (handler) {
       try {
         await handler(data, ws);
@@ -329,7 +340,7 @@ export class Server {
       } catch (error) {
         console.error(`Error handling event ${event}:`, error);
       }
-    } else if (!['create_room', 'join_room', 'leave_room'].includes(event)) {
+    } else if (!ROOM_EVENT_LIST.includes(event)) {
       console.warn(`No handler for event: ${event}`);
     }
   }

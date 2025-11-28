@@ -1,29 +1,22 @@
-type RoomId = string;
+import { IRoom, RoomId } from "@root/src/models/room";
 
-interface Room {
-  id: RoomId;
-  players: string[];
-  maxPlayers: number;
-  createdAt: number;
-  [key: string]: unknown;
-}
+export class RoomManager {
+  private rooms: Map<RoomId, IRoom> = new Map();
 
-class RoomManager {
-  private rooms: Map<RoomId, Room> = new Map();
-
-  createRoom(playerId: string): Room {
+  createRoom(playerId: string, maxPlayers: number = 4): IRoom {
     const id = crypto.randomUUID();
-    const room: Room = {
+    const room: IRoom = {
       id,
       players: [playerId],
-      maxPlayers: 4,
+      maxPlayers: maxPlayers,
       createdAt: Date.now(),
     };
     this.rooms.set(id, room);
+    console.log(`Room ${id} created by player ${playerId} with ${maxPlayers} players`);
     return room;
   }
 
-  joinRoom(playerId: string, roomId: RoomId): Room | null {
+  joinRoom(playerId: string, roomId: RoomId): IRoom | null {
     const room = this.rooms.get(roomId);
     if (!room || room.players.length >= room.maxPlayers) return null;
     room.players.push(playerId);
@@ -35,19 +28,31 @@ class RoomManager {
       const index = room.players.indexOf(playerId);
       if (index !== -1) {
         room.players.splice(index, 1);
-        if (room.players.length === 0) this.rooms.delete(id);
+        if (room.players.length === 0) {
+          this.rooms.delete(id);
+          console.log(`Room ${id} deleted because it is empty`);
+        }
+        console.log(`Player ${playerId} left room ${id}`);
         break;
       }
     }
   }
 
-  getRoomByPlayer(playerId: string): Room | undefined {
+  closeRoom(roomId: RoomId): void {
+    const room = this.rooms.get(roomId);
+    if (room) {
+      console.log(`Room ${roomId} closed by player ${room.players[0]}`);
+      this.rooms.delete(roomId);
+    }
+  }
+
+  getRoomByPlayer(playerId: string): IRoom | undefined {
     return Array.from(this.rooms.values()).find((r) =>
       r.players.includes(playerId)
     );
   }
 
-  getRoom(roomId: RoomId): Room | undefined {
+  getRoom(roomId: RoomId): IRoom | undefined {
     return this.rooms.get(roomId);
   }
 }
