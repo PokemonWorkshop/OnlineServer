@@ -1,4 +1,4 @@
-import mongoose, { connect, connection } from 'mongoose';
+import { connect, connection } from 'mongoose';
 
 /**
  * Establishes a connection to the MongoDB database using environment variables for configuration.

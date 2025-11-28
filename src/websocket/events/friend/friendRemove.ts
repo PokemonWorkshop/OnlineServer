@@ -1,6 +1,6 @@
 import createEventHandler from '@logic/createEventHandler';
 import { server } from '@root/src';
-import { Player } from '@root/src/models/player';
+import { Player } from '@root/src/models/player/player.model';
 import { z } from 'zod';
 
 /**

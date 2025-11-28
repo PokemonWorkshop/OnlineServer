@@ -1,5 +1,5 @@
 import { server } from '@root/src';
-import { Gift } from '@root/src/models/gift';
+import { Gift } from '@root/src/models/gift/gift.model';
 import createEventHandler from '@logic/createEventHandler';
 import { z } from 'zod';
 

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import createEventHandler from '@logic/createEventHandler';
-import { Gts, IGts } from '@models/gts';
+import { Gts } from '@root/src/models/gts/gts.model';
 
 /**
  * Schema for filtering the creatures based on user input.

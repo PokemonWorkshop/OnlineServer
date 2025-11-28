@@ -1,5 +1,5 @@
 import createEventHandler from '@logic/createEventHandler';
-import { Player } from '@root/src/models/player';
+import { Player } from '@root/src/models/player/player.model';
 import { server } from '@src/index';
 
 /**

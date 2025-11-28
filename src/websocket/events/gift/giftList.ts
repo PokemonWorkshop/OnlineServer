@@ -1,6 +1,6 @@
 import createEventHandler from '@logic/createEventHandler';
 import { server } from '@root/src';
-import { Gift } from '@root/src/models/gift';
+import { Gift } from '@root/src/models/gift/gift.model';
 
 /**
  * Handles the 'giftList' event by retrieving the list of claimable gifts for the player.

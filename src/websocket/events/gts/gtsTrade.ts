@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import createEventHandler from '@logic/createEventHandler';
-import { Gts } from '@models/gts';
 import { server } from '@root/src';
+import { Gts } from '@root/src/models/gts/gts.model';
 
 /**
  * Schema de validation pour le trade.
@@ -9,6 +9,7 @@ import { server } from '@root/src';
 const GtsTradeData = z.object({
   playerA_id: z.string(),
   offeredCreature: z.object({
+    id: z.string(),
     species: z.string(),
     level: z.number(),
     shiny: z.boolean(),

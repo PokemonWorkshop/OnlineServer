@@ -8,12 +8,12 @@ import {
 } from '@src/types';
 import events from '@events/index';
 import { verify } from 'jsonwebtoken';
-import { Player } from '@root/src/models/player';
 import { Server as HttpNodeServer } from 'http';
 import { ROOM_EVENTS, ROOM_EVENT_LIST, ROOM_OUTBOUND_EVENTS } from '@events/room-events';
 import { ERROR_CODES } from '@events/error-codes';
 import { RoomManager } from './roomManager';
 import { emit, emitError } from './emitter';
+import { Player } from '@root/src/models/player/player.model';
 
 const SECRET_KEY = process.env.SECRET_KEY as string;
 

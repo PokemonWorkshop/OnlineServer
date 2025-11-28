@@ -1,15 +1,20 @@
 import 'dotenv/config';
-import '@tasks/logger';
 
 import { HttpServer } from '@http/logic/server';
 import { Server } from '@logic/server';
-import { Player } from '@models/player';
-import { Gift } from '@models/gift';
 import { ensureToken } from '@tasks/token';
 import { resolve } from 'path';
 import http from 'http';
-import { database_connection, database_close } from '@tasks/database'; // 👈 Add database_disconnect
-import routes from '@http/routes';
+import { database_connection, database_close } from '@tasks/database'; // 👈 Ajoute database_disconnect
+
+import './http/routes/index';
+import { routes } from './http/logic/routes';
+import '@tasks/logger';
+import { Player } from './models/player/player.model';
+import { Gift } from './models/gift/gift.model';
+
+import '@tasks/logger';
+
 import { JsonParser } from '@http/middlewares/jsonParser';
 import { AuthMiddleware } from '@http/middlewares/authMiddleware';
 

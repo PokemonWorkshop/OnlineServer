@@ -1,6 +1,6 @@
 import createEventHandler from '@logic/createEventHandler';
 import { server } from '@root/src';
-import { Gift } from '@root/src/models/gift';
+import { Gift } from '@root/src/models/gift/gift.model';
 import { z } from 'zod';
 
 
