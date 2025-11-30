@@ -311,6 +311,24 @@ export class Server {
         }
         break;
       }
+      case ROOM_EVENTS.GET: {
+        const roomId = (data as { roomId: string }).roomId;
+        if (typeof roomId !== 'string') {
+          emitError(ws, ERROR_CODES.INVALID_ROOM_ID);
+          console.warn(`Invalid room ID: ${roomId}`);
+          break;
+        }
+        const room = this.roomManager.getRoom(roomId);
+        if (room) {
+          emit(ws, ROOM_OUTBOUND_EVENTS.GET, { payload: room });
+        }
+        break;
+      }
+      case ROOM_EVENTS.LIST: {
+        const rooms = this.roomManager.getAllRooms();
+        emit(ws, ROOM_OUTBOUND_EVENTS.LIST, { payload: rooms });
+        break;
+      }
     }
 
     const handler = this.eventHandlers[event];

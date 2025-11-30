@@ -3,7 +3,7 @@ import { IRoom, RoomId } from "@root/src/models/room";
 export class RoomManager {
   private rooms: Map<RoomId, IRoom> = new Map();
 
-  createRoom(playerId: string, maxPlayers: number = 4): IRoom {
+  public createRoom(playerId: string, maxPlayers: number = 4): IRoom {
     const id = crypto.randomUUID();
     const room: IRoom = {
       id,
@@ -16,14 +16,14 @@ export class RoomManager {
     return room;
   }
 
-  joinRoom(playerId: string, roomId: RoomId): IRoom | null {
+  public joinRoom(playerId: string, roomId: RoomId): IRoom | null {
     const room = this.rooms.get(roomId);
     if (!room || room.players.length >= room.maxPlayers) return null;
     room.players.push(playerId);
     return room;
   }
 
-  leaveRoom(playerId: string): void {
+  public leaveRoom(playerId: string): void {
     for (const [id, room] of this.rooms.entries()) {
       const index = room.players.indexOf(playerId);
       if (index !== -1) {
@@ -38,7 +38,7 @@ export class RoomManager {
     }
   }
 
-  closeRoom(roomId: RoomId): void {
+  public closeRoom(roomId: RoomId): void {
     const room = this.rooms.get(roomId);
     if (room) {
       console.log(`Room ${roomId} closed by player ${room.players[0]}`);
@@ -46,13 +46,17 @@ export class RoomManager {
     }
   }
 
-  getRoomByPlayer(playerId: string): IRoom | undefined {
+  public getRoomByPlayer(playerId: string): IRoom | undefined {
     return Array.from(this.rooms.values()).find((r) =>
       r.players.includes(playerId)
     );
   }
 
-  getRoom(roomId: RoomId): IRoom | undefined {
+  public getRoom(roomId: RoomId): IRoom | undefined {
     return this.rooms.get(roomId);
+  }
+
+  public getAllRooms(): Map<RoomId, IRoom> {
+    return this.rooms;
   }
 }
