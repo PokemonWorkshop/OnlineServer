@@ -25,11 +25,15 @@ const friendPendingHandler = createEventHandler(
     if (!player) return { success: false, message: 'Player not found' };
 
     try {
-      const pending = await Player.getPendingFriendRequest(player);
+      const [received, sent] = await Promise.all([
+        Player.getPendingFriendRequest(player),
+        Player.getSentFriendRequests(player),
+      ]);
 
       return {
         success: true,
-        data: pending,
+        received,
+        sent,
       };
     } catch (error) {
       console.error('Error list friend pending:', error);

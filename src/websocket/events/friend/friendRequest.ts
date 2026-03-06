@@ -45,6 +45,27 @@ const friendRequestHandler = createEventHandler(
         player,
         validatedData.data.toFriendCode
       );
+
+      // If the request was sent successfully, notify the recipient if they are online
+      if (result.success) {
+        const recipient = await Player.findOne({ friendCode: validatedData.data.toFriendCode });
+        if (recipient) {
+          const recipientWs = server.getClientWebsocket(recipient.id);
+          if (recipientWs) {
+            const senderData = await Player.findOne({ id: player });
+            if (senderData) {
+              server.emit(recipientWs, 'friendRequestReceived', {
+                id: senderData.id,
+                name: senderData.name,
+                friendCode: senderData.friendCode,
+                charsetBase: senderData.charsetBase,
+                date: new Date(),
+              });
+            }
+          }
+        }
+      }
+
       return result;
     } catch (error) {
       console.error('Error sending friend request:', error);

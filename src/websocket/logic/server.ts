@@ -10,6 +10,7 @@ import events from '@events/index';
 import { verify } from 'jsonwebtoken';
 import { Player } from '@root/src/models/player';
 import { Server as HttpNodeServer } from 'http';
+import { removeSessionByPlayer, getPartner } from './tradeSession';
 
 const SECRET_KEY = process.env.SECRET_KEY as string;
 
@@ -79,31 +80,69 @@ export class Server {
       }
 
       const playerId = request.headers['player-id'] as string;
+      const playerName = (request.headers['player-name'] as string) || playerId;
 
-      if (!playerId || this.clients.has(playerId)) {
-        const errorData = {
-          ERR_MISSING_PLAYER_ID: {
-            message: 'Missing player_id in connection request',
-            code: 'ERR_MISSING_PLAYER_ID',
-          },
-          ERR_ALREADY_CONNECTED: {
-            message: 'Player is already connected',
-            code: 'ERR_ALREADY_CONNECTED',
-          },
-        };
+      if (!playerId) {
+        return this.rejectConnection(ws, 'ERR_MISSING_PLAYER_ID', 'Missing player_id in connection request');
+      }
 
-        const error =
-          errorData[
-            !playerId ? 'ERR_MISSING_PLAYER_ID' : 'ERR_ALREADY_CONNECTED'
-          ];
-
-        return this.rejectConnection(ws, error.code, error.message);
+      // If player is already connected (stale connection from crash/restart), close the old one
+      if (this.clients.has(playerId)) {
+        const oldWs = this.clients.get(playerId);
+        console.log(`Player ${playerId} reconnecting — closing stale connection`);
+        this.clients.delete(playerId);
+        try { oldWs?.close(); } catch { /* ignore */ }
       }
 
       this.clients.set(playerId, ws);
       console.log(`Player ${playerId} connected`);
 
-      await Player.setPlayerConnectionStatus(playerId, true);
+      try {
+        await Player.setPlayerConnectionStatus(playerId, true);
+      } catch {
+        // Player might not exist yet, that's fine
+      }
+
+      // Ensure player exists (auto-create on first connection), then send data
+      try {
+        const result = await Player.ensurePlayer({ id: playerId, name: playerName });
+        console.log('ensurePlayer result:', JSON.stringify(result));
+      } catch (err: any) {
+        console.error('Error ensuring player:', err?.message || err?.stack || String(err));
+      }
+      // Sync player name from header if it differs from DB (trainer may have changed name)
+      if (playerName && playerName !== playerId) {
+        try {
+          await Player.updateFields(playerId, { name: playerName });
+        } catch {
+          // Non-critical, ignore
+        }
+      }
+      const playerData = await Player.findOne({ id: playerId });
+      if (playerData) {
+        this.emit(ws, 'authenticated', {
+          event: 'authenticated',
+          player: {
+            id: playerData.id,
+            name: playerData.name,
+            friendCode: playerData.friendCode,
+            greeting: playerData.greeting,
+            charsetBase: playerData.charsetBase,
+            trades: playerData.trades,
+            wins: playerData.wins,
+            losses: playerData.losses,
+          },
+          friendCode: playerData.friendCode,
+        });
+
+        // Notify online friends that this player is now online
+        for (const friendId of playerData.friends) {
+          const friendWs = this.clients.get(friendId);
+          if (friendWs && friendWs.readyState === WebSocket.OPEN) {
+            this.emit(friendWs, 'friendOnline', { friendId: playerId });
+          }
+        }
+      }
 
       ws.on('message', (message) => this.handleMessage(message, ws));
 
@@ -113,6 +152,32 @@ export class Server {
             this.clients.delete(id);
             console.log(`Player ${id} disconnected`);
             await Player.setPlayerConnectionStatus(playerId, false);
+
+            // Cancel active trade session on disconnect
+            const tradeSession = removeSessionByPlayer(playerId);
+            if (tradeSession) {
+              const partnerId = getPartner(tradeSession, playerId);
+              if (partnerId) {
+                const partnerWs = this.clients.get(partnerId);
+                if (partnerWs && partnerWs.readyState === WebSocket.OPEN) {
+                  this.emit(partnerWs, 'tradeCancelled', {
+                    cancelledBy: playerId,
+                  });
+                }
+              }
+            }
+
+            // Notify online friends that this player is now offline
+            const disconnectedPlayer = await Player.findOne({ id: playerId });
+            if (disconnectedPlayer) {
+              for (const friendId of disconnectedPlayer.friends) {
+                const friendWs = this.clients.get(friendId);
+                if (friendWs && friendWs.readyState === WebSocket.OPEN) {
+                  this.emit(friendWs, 'friendOffline', { friendId: playerId });
+                }
+              }
+            }
+
             break;
           }
         }

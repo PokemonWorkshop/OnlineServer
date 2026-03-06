@@ -45,6 +45,15 @@ const friendAcceptHandler = createEventHandler(
         player,
         validatedData.data.senderId
       );
+
+      // If accepted successfully, notify the original sender if they are online
+      if (result.success) {
+        const senderWs = server.getClientWebsocket(validatedData.data.senderId);
+        if (senderWs) {
+          server.emit(senderWs, 'friendAccepted', { senderId: player });
+        }
+      }
+
       return result;
     } catch (error) {
       console.error('Error accepting friend request:', error);

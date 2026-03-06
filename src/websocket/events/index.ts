@@ -12,10 +12,19 @@ import friendDeclineHandler from './friend/friendDecline';
 import friendRemoveHandler from './friend/friendRemove';
 import friendListHandler from './friend/friendList';
 import friendPendingHandler from './friend/friendPending';
+import friendCancelHandler from './friend/friendCancel';
 import giftClaimHandler from './gift/giftClaim';
 import giftClaimByCodeHandler from './gift/giftClaimByCode';
 import giftClaimByIdHandler from './gift/giftClaimById';
 import playerUpdateHandler from './player/playerUpdate';
+import {
+  tradeRequestHandler,
+  tradeAcceptHandler,
+  tradeDeclineHandler,
+  tradeSelectHandler,
+  tradeConfirmHandler,
+  tradeCancelHandler,
+} from './trade';
 
 /**
  * An object containing event handlers for various websocket events.
@@ -40,6 +49,13 @@ const events: EventHandlers = {
   friendRemove: friendRemoveHandler,
   friendList: friendListHandler,
   friendPending: friendPendingHandler,
+  friendCancel: friendCancelHandler,
+  tradeRequest: tradeRequestHandler,
+  tradeAccept: tradeAcceptHandler,
+  tradeDecline: tradeDeclineHandler,
+  tradeSelect: tradeSelectHandler,
+  tradeConfirm: tradeConfirmHandler,
+  tradeCancel: tradeCancelHandler,
 };
 
 export default events;

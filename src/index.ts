@@ -3,6 +3,7 @@ import '@tasks/logger';
 
 import { HttpServer } from '@http/logic/server';
 import { Server } from '@logic/server';
+import { startSessionCleanup } from '@logic/tradeSession';
 import { Player } from '@models/player';
 import { Gift } from '@models/gift';
 import { ensureToken } from '@tasks/token';
@@ -32,6 +33,18 @@ async function main() {
     httpServer.attach(rawHttpServer);
 
     server = new Server(rawHttpServer);
+
+    // Cleanup expired trade sessions (10min TTL) and notify partners
+    startSessionCleanup((session) => {
+      const notifyPlayer = (playerId: string) => {
+        const playerWs = server.getClientWebsocket(playerId);
+        if (playerWs) {
+          server.emit(playerWs, 'tradeCancelled', { cancelledBy: 'timeout' });
+        }
+      };
+      notifyPlayer(session.playerA);
+      notifyPlayer(session.playerB);
+    });
 
     rawHttpServer.listen(PORT, () => {
       console.info(

@@ -46,6 +46,15 @@ const friendDeclineHandler = createEventHandler(
         player,
         validatedData.data.senderId
       );
+
+      // If declined successfully, notify the original sender if they are online
+      if (result.success) {
+        const senderWs = server.getClientWebsocket(validatedData.data.senderId);
+        if (senderWs) {
+          server.emit(senderWs, 'friendDeclined', { senderId: player });
+        }
+      }
+
       return result;
     } catch (error) {
       console.error('Error declining friend request:', error);

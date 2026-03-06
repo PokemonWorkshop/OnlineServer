@@ -1,4 +1,4 @@
-import { Schema, Document, model, Model } from 'mongoose';
+import { Document, model, Model, Schema } from "mongoose";
 
 /**
  * Represents a friend request sent by a user.
@@ -29,6 +29,9 @@ interface FriendRequest {
  * @property {Date} lastConnection - The timestamp of the player's last connection.
  * @property {boolean} isConnect - Indicates if the player is currently connected.
  * @property {boolean} isLinked - Indicates if the player is linked to another account or service.
+ * @property {number} trades - The number of trades the player has made.
+ * @property {number} wins - The number of wins the player has achieved.
+ * @property {number} losses - The number of losses the player has experienced.
  */
 interface IPlayer extends Document {
   id: string;
@@ -42,6 +45,9 @@ interface IPlayer extends Document {
   lastConnection: Date;
   isConnect: boolean;
   isLinked: boolean;
+  trades: number;
+  wins: number;
+  losses: number;
 }
 
 /**
@@ -60,7 +66,7 @@ interface IPlayerModel extends Model<IPlayer> {
    * - `message`: An optional message providing additional information.
    */
   ensurePlayer(
-    playerData: Partial<IPlayer>
+    playerData: Partial<IPlayer>,
   ): Promise<{ success: boolean; player?: IPlayer; message?: string }>;
 
   /**
@@ -72,7 +78,7 @@ interface IPlayerModel extends Model<IPlayer> {
    */
   setPlayerConnectionStatus(
     playerId: string,
-    isConnected: boolean
+    isConnected: boolean,
   ): Promise<IPlayer>;
 
   /**
@@ -93,7 +99,7 @@ interface IPlayerModel extends Model<IPlayer> {
    */
   sendFriendRequest(
     fromId: string,
-    toFriendCode: string
+    toFriendCode: string,
   ): Promise<{ success: boolean; message: string }>;
 
   /**
@@ -105,7 +111,7 @@ interface IPlayerModel extends Model<IPlayer> {
    */
   acceptedFriendRequest(
     receiverId: string,
-    senderId: string
+    senderId: string,
   ): Promise<{ success: boolean; message: string }>;
 
   /**
@@ -117,7 +123,7 @@ interface IPlayerModel extends Model<IPlayer> {
    */
   declineFriendRequest(
     receiverId: string,
-    senderId: string
+    senderId: string,
   ): Promise<{ success: boolean; message: string }>;
 
   /**
@@ -129,7 +135,7 @@ interface IPlayerModel extends Model<IPlayer> {
    */
   removeFriend(
     playerId: string,
-    friendId: string
+    friendId: string,
   ): Promise<{ success: boolean; message: string }>;
 
   /**
@@ -159,7 +165,7 @@ interface IPlayerModel extends Model<IPlayer> {
    * to an array of objects containing the selected fields.
    */
   getPendingFriendRequest(
-    playerId: string
+    playerId: string,
   ): Promise<{ id: string; name: string; friendCode: string }[]>;
 
   /**
@@ -173,9 +179,20 @@ interface IPlayerModel extends Model<IPlayer> {
 
    * @returns A promise that resolves to an array of friend objects containing the selected fields.
    */
-  getFriendList(
-    playerId: string
-  ): Promise<{ id: string; name: string; friendCode: string }[]>;
+  getSentFriendRequests(
+    playerId: string,
+  ): Promise<{ id: string; name: string; friendCode: string; date: Date }[]>;
+
+  getFriendList(playerId: string): Promise<
+    {
+      id: string;
+      name: string;
+      friendCode: string;
+      greeting: string;
+      isConnect: boolean;
+      charsetBase: string;
+    }[]
+  >;
 
   /**
    * Removes a player and cleans up any friend references or requests to/from them.
@@ -184,7 +201,7 @@ interface IPlayerModel extends Model<IPlayer> {
    * @returns A promise that resolves with the result of the operation.
    */
   removePlayer(
-    playerId: string
+    playerId: string,
   ): Promise<{ success: boolean; message: string }>;
 
   /**
@@ -219,12 +236,14 @@ const SPlayer = new Schema<IPlayer>({
   },
   name: { type: String, required: true },
   isGirl: { type: Boolean },
-  charsetBase: { type: String, default: '' },
-  greeting: { type: String, default: '' },
+  charsetBase: { type: String, default: "" },
+  greeting: { type: String, default: "" },
   friendCode: {
     type: String,
     default: function () {
-      return Math.random().toString(36).substring(2, 10);
+      const part1 = String(Math.floor(Math.random() * 10000)).padStart(4, '0');
+      const part2 = String(Math.floor(Math.random() * 10000)).padStart(4, '0');
+      return `${part1}-${part2}`;
     },
     unique: true,
   },
@@ -244,15 +263,18 @@ const SPlayer = new Schema<IPlayer>({
   lastConnection: { type: Date, default: Date.now },
   isConnect: { type: Boolean, default: false },
   isLinked: { type: Boolean, default: false },
+  trades: { type: Number, default: 0 },
+  wins: { type: Number, default: 0 },
+  losses: { type: Number, default: 0 },
 });
 
 SPlayer.statics.ensurePlayer = async function (
-  playerData: Partial<IPlayer>
+  playerData: Partial<IPlayer>,
 ): Promise<{ success: boolean; player?: IPlayer; message?: string }> {
   const existingPlayer = await this.exists({ id: playerData.id });
 
   if (existingPlayer) {
-    return { success: false, message: 'Player already exists' };
+    return { success: false, message: "Player already exists" };
   }
 
   try {
@@ -260,7 +282,7 @@ SPlayer.statics.ensurePlayer = async function (
     return {
       success: true,
       player: newPlayer,
-      message: 'Player created successfully',
+      message: "Player created successfully",
     };
   } catch (error) {
     return {
@@ -272,17 +294,17 @@ SPlayer.statics.ensurePlayer = async function (
 
 SPlayer.statics.setPlayerConnectionStatus = async function (
   playerId: string,
-  isConnected: boolean
+  isConnected: boolean,
 ): Promise<IPlayer> {
   return this.findOneAndUpdate(
     { id: playerId },
     { isConnect: isConnected, lastConnection: new Date() },
-    { new: true }
+    { new: true },
   );
 };
 
 SPlayer.statics.clearExpiredPlayers = async function (
-  days: number
+  days: number,
 ): Promise<number> {
   const now = new Date();
   now.setDate(now.getDate() - days);
@@ -296,7 +318,7 @@ SPlayer.statics.clearExpiredPlayers = async function (
 
     if (expiredIds.length === 0) {
       console.log(
-        `0 expired players removed (before ${now.toISOString().split('T')[0]}).`
+        `0 expired players removed (before ${now.toISOString().split("T")[0]}).`,
       );
       return 0;
     }
@@ -307,73 +329,73 @@ SPlayer.statics.clearExpiredPlayers = async function (
 
     await this.updateMany(
       {},
-      { $pull: { friendRequests: { from: { $in: expiredIds } } } }
+      { $pull: { friendRequests: { from: { $in: expiredIds } } } },
     );
 
     console.log(
       `${result.deletedCount} expired players removed (last connection before ${
-        now.toISOString().split('T')[0]
-      }).`
+        now.toISOString().split("T")[0]
+      }).`,
     );
     return result.deletedCount || 0;
   } catch (error) {
-    console.error('Error clearing expired players:', error);
+    console.error("Error clearing expired players:", error);
     return 0;
   }
 };
 
 SPlayer.statics.setPlayerLinkedStatus = async function (
   playerId: string,
-  isLinked: boolean
+  isLinked: boolean,
 ): Promise<IPlayer> {
   return this.findOneAndUpdate(
     { id: playerId },
     { isLinked: isLinked },
-    { new: true }
+    { new: true },
   );
 };
 
 SPlayer.statics.sendFriendRequest = async function (
   fromId: string,
-  toFriendCode: string
+  toFriendCode: string,
 ): Promise<{ success: boolean; message: string }> {
   const recipient = await this.findOne({ friendCode: toFriendCode });
-  if (!recipient) return { success: false, message: 'Target player not found' };
+  if (!recipient) return { success: false, message: "Target player not found" };
 
   if (recipient.id === fromId)
-    return { success: false, message: 'Cannot friend yourself' };
+    return { success: false, message: "Cannot friend yourself" };
 
   const alreadyFriend = recipient.friends.includes(fromId);
   const existingRequest = recipient.friendRequests.find(
-    (req: { from: string }) => req.from === fromId
+    (req: { from: string }) => req.from === fromId,
   );
 
-  if (alreadyFriend) return { success: false, message: 'Already friends' };
+  if (alreadyFriend) return { success: false, message: "Already friends" };
   if (existingRequest)
-    return { success: false, message: 'Request already pending' };
+    return { success: false, message: "Request already pending" };
 
   recipient.friendRequests.push({ from: fromId, date: new Date() });
   await recipient.save();
 
-  return { success: true, message: 'Friend request sent' };
+  return { success: true, message: "Friend request sent" };
 };
 
 SPlayer.statics.acceptedFriendRequest = async function (
   receiverId: string,
-  senderId: string
+  senderId: string,
 ): Promise<{ success: boolean; message: string }> {
   const receiver = await this.findOne({ id: receiverId });
   const sender = await this.findOne({ id: senderId });
 
   if (!receiver || !sender)
-    return { success: false, message: 'Player(s) not found' };
+    return { success: false, message: "Player(s) not found" };
 
   const requestIndex = receiver.friendRequests.findIndex(
-    (req: { from: string }) => req.from === senderId
+    (req: { from: string }) => req.from === senderId,
   );
 
   if (requestIndex === -1)
-    return { success: false, message: 'No pending request from this player' };
+    return { success: false, message: "No pending request from this player" };
 
   receiver.friendRequests.splice(requestIndex, 1);
 
@@ -381,48 +403,48 @@ SPlayer.statics.acceptedFriendRequest = async function (
   sender.friends.push(receiverId);
 
   await Promise.all([receiver.save(), sender.save()]);
-  return { success: true, message: 'Friend request accepted' };
+  return { success: true, message: "Friend request accepted" };
 };
 
 SPlayer.statics.declineFriendRequest = async function (
   receiverId: string,
-  senderId: string
+  senderId: string,
 ): Promise<{ success: boolean; message: string }> {
   const receiver = await this.findOne({ id: receiverId });
-  if (!receiver) return { success: false, message: 'Player not found' };
+  if (!receiver) return { success: false, message: "Player not found" };
 
   const requestIndex = receiver.friendRequests.findIndex(
-    (req: { from: string }) => req.from === senderId
+    (req: { from: string }) => req.from === senderId,
   );
 
   if (requestIndex === -1)
-    return { success: false, message: 'No pending request from this player' };
+    return { success: false, message: "No pending request from this player" };
 
   receiver.friendRequests.splice(requestIndex, 1);
   await receiver.save();
 
-  return { success: true, message: 'Friend request declined' };
+  return { success: true, message: "Friend request declined" };
 };
 
 SPlayer.statics.removeFriend = async function (
   playerId: string,
-  friendId: string
+  friendId: string,
 ): Promise<{ success: boolean; message: string }> {
   const player = await this.findOne({ id: playerId });
   const friend = await this.findOne({ id: friendId });
 
   if (!player || !friend)
-    return { success: false, message: 'Player(s) not found' };
+    return { success: false, message: "Player(s) not found" };
 
   player.friends = player.friends.filter((id: string) => id !== friendId);
   friend.friends = friend.friends.filter((id: string) => id !== playerId);
 
   await Promise.all([player.save(), friend.save()]);
-  return { success: true, message: 'Friend removed successfully' };
+  return { success: true, message: "Friend removed successfully" };
 };
 
 SPlayer.statics.clearOldFriendRequests = async function (
-  days: number
+  days: number,
 ): Promise<number> {
   const threshold = new Date();
   threshold.setDate(threshold.getDate() - days);
@@ -431,13 +453,13 @@ SPlayer.statics.clearOldFriendRequests = async function (
 
   try {
     const players = await this.find({
-      'friendRequests.date': { $lte: threshold },
+      "friendRequests.date": { $lte: threshold },
     });
 
     for (const player of players) {
       const originalLength = player.friendRequests.length;
       player.friendRequests = player.friendRequests.filter(
-        (req: { date: Date }) => req.date > threshold
+        (req: { date: Date }) => req.date > threshold,
       );
       const removedCount = originalLength - player.friendRequests.length;
       totalRemoved += removedCount;
@@ -449,73 +471,129 @@ SPlayer.statics.clearOldFriendRequests = async function (
 
     console.log(
       `${totalRemoved} expired friend requests removed (before ${
-        threshold.toISOString().split('T')[0]
-      }).`
+        threshold.toISOString().split("T")[0]
+      }).`,
     );
     return totalRemoved;
   } catch (err) {
-    console.error('Error clearing old friend requests:', err);
+    console.error("Error clearing old friend requests:", err);
     return 0;
   }
 };
 
 SPlayer.statics.getPendingFriendRequest = async function (
-  playerId: string
-): Promise<{ id: string; name: string; friendCode: string }[]> {
+  playerId: string,
+): Promise<{ id: string; name: string; friendCode: string; date: Date }[]> {
   const player = await this.findOne({ id: playerId });
 
   if (!player) return [];
 
-  const fromIds = player.friendRequests.map(
-    (req: { from: string }) => req.from
-  );
+  const dateMap = new Map<string, Date>();
+  player.friendRequests.forEach((req: { from: string; date: Date }) => {
+    dateMap.set(req.from, req.date);
+  });
+
+  const fromIds = Array.from(dateMap.keys());
 
   const pending = await this.find({
     id: { $in: fromIds },
-  }).select('id name friendCode');
+  }).select("id name friendCode charsetBase isConnect");
 
-  return pending.map((p: { id: string; name: string; friendCode: string }) => ({
+  return pending.map((p: { id: string; name: string; friendCode: string; charsetBase: string; isConnect: boolean }) => ({
     id: p.id,
     name: p.name,
     friendCode: p.friendCode,
+    charsetBase: p.charsetBase,
+    isConnect: p.isConnect,
+    date: dateMap.get(p.id) || new Date(),
   }));
 };
 
-SPlayer.statics.getFriendList = async function (
-  playerId: string
-): Promise<{ id: string; name: string; friendCode: string }[]> {
+SPlayer.statics.getSentFriendRequests = async function (
+  playerId: string,
+): Promise<{ id: string; name: string; friendCode: string; date: Date }[]> {
+  const recipients = await this.find({
+    "friendRequests.from": playerId,
+  }).select("id name friendCode charsetBase isConnect friendRequests");
+
+  return recipients.map(
+    (p: {
+      id: string;
+      name: string;
+      friendCode: string;
+      charsetBase: string;
+      isConnect: boolean;
+      friendRequests: FriendRequest[];
+    }) => {
+      const request = p.friendRequests.find(
+        (req: FriendRequest) => req.from === playerId,
+      );
+      return {
+        id: p.id,
+        name: p.name,
+        friendCode: p.friendCode,
+        charsetBase: p.charsetBase,
+        isConnect: p.isConnect,
+        date: request ? request.date : new Date(),
+      };
+    },
+  );
+};
+
+SPlayer.statics.getFriendList = async function (playerId: string): Promise<
+  {
+    id: string;
+    name: string;
+    friendCode: string;
+    greeting: string;
+    isConnect: boolean;
+    charsetBase: string;
+  }[]
+> {
   const player = await this.findOne({ id: playerId });
 
   const friends = await this.find({
     id: { $in: player.friends },
-  }).select('id name friendCode');
+  }).select("id name friendCode greeting isConnect charsetBase");
 
-  return friends.map((p: { id: string; name: string; friendCode: string }) => ({
-    id: p.id,
-    name: p.name,
-    friendCode: p.friendCode,
-  }));
+  return friends.map(
+    (p: {
+      id: string;
+      name: string;
+      friendCode: string;
+      greeting: string;
+      isConnect: boolean;
+      charsetBase: string;
+    }) => ({
+      id: p.id,
+      name: p.name,
+      friendCode: p.friendCode,
+      greeting: p.greeting,
+      isConnect: p.isConnect,
+      charsetBase: p.charsetBase,
+    }),
+  );
 };
 
 SPlayer.statics.removePlayer = async function (
-  playerId: string
+  playerId: string,
 ): Promise<{ success: boolean; message: string }> {
   try {
     const player = await this.findOne({ id: playerId });
     if (!player) {
-      return { success: false, message: 'Player not found' };
+      return { success: false, message: "Player not found" };
     }
 
     // Remove player from other players' friends lists
     await this.updateMany(
       { friends: playerId },
-      { $pull: { friends: playerId } }
+      { $pull: { friends: playerId } },
     );
 
     // Remove player from other players' friendRequests
     await this.updateMany(
-      { 'friendRequests.from': playerId },
-      { $pull: { friendRequests: { from: playerId } } }
+      { "friendRequests.from": playerId },
+      { $pull: { friendRequests: { from: playerId } } },
     );
 
     // Finally, delete the player document
@@ -523,17 +601,17 @@ SPlayer.statics.removePlayer = async function (
 
     return {
       success: true,
-      message: 'Player and references removed successfully',
+      message: "Player and references removed successfully",
     };
   } catch (error) {
-    console.error('Error removing player:', error);
-    return { success: false, message: 'Error occurred while removing player' };
+    console.error("Error removing player:", error);
+    return { success: false, message: "Error occurred while removing player" };
   }
 };
 
 SPlayer.statics.updateFields = async function (
   playerId: string,
-  fields: Partial<IPlayer>
+  fields: Partial<IPlayer>,
 ): Promise<IPlayer> {
   return this.findOneAndUpdate({ id: playerId }, fields, { new: true });
 };
@@ -546,6 +624,6 @@ SPlayer.statics.updateFields = async function (
  * @param {string} name - The name of the model.
  * @param {Schema} schema - The schema definition for the model.
  */
-const Player = model<IPlayer, IPlayerModel>('Player', SPlayer);
+const Player = model<IPlayer, IPlayerModel>("Player", SPlayer);
 
-export { Player, IPlayer };
+export { IPlayer, Player };

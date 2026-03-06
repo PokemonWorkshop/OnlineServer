@@ -43,6 +43,15 @@ const friendRemoveHandler = createEventHandler(
         player,
         validatedData.data.friendId
       );
+
+      // If removed successfully, notify the other player if they are online
+      if (result.success) {
+        const friendWs = server.getClientWebsocket(validatedData.data.friendId);
+        if (friendWs) {
+          server.emit(friendWs, 'friendRemoved', { friendId: player });
+        }
+      }
+
       return result;
     } catch (error) {
       console.error('Error removing friend:', error);
