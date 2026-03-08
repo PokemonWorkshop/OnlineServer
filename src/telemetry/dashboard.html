@@ -1,0 +1,1058 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PSDK — Telemetry</title>
+    <style>
+      :root {
+        --bg: #0d1117;
+        --panel: #161b22;
+        --card: #1c2230;
+        --border: rgba(255, 255, 255, 0.07);
+        --text: #e6edf3;
+        --muted: #7d8590;
+        --blue: #58a6ff;
+        --green: #3fb950;
+        --yellow: #d29922;
+        --red: #f85149;
+        --purple: #bc8cff;
+        --orange: #ffa657;
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        background: var(--bg);
+        color: var(--text);
+        font-size: 13px;
+      }
+
+      /* ── Layout ── */
+      .topbar {
+        background: var(--panel);
+        border-bottom: 1px solid var(--border);
+        padding: 14px 24px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+      }
+      .topbar-logo {
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--text);
+        letter-spacing: 1px;
+      }
+      .topbar-logo span {
+        color: var(--blue);
+      }
+      .topbar-sub {
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .topbar-right {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .live-badge {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(63, 185, 80, 0.12);
+        border: 1px solid rgba(63, 185, 80, 0.25);
+        border-radius: 20px;
+        padding: 4px 10px;
+        font-size: 11px;
+        color: var(--green);
+        font-weight: 700;
+      }
+      .live-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--green);
+        animation: pulse 2s infinite;
+      }
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.3;
+        }
+      }
+      .refresh-btn {
+        background: rgba(88, 166, 255, 0.1);
+        border: 1px solid rgba(88, 166, 255, 0.2);
+        color: var(--blue);
+        border-radius: 6px;
+        padding: 5px 12px;
+        font-family: inherit;
+        font-size: 11px;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+      .refresh-btn:hover {
+        background: rgba(88, 166, 255, 0.18);
+      }
+      .uptime {
+        font-size: 11px;
+        color: var(--muted);
+      }
+
+      .main {
+        padding: 20px 24px;
+        max-width: 1400px;
+        margin: 0 auto;
+      }
+
+      /* ── KPI cards ── */
+      .kpi-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 12px;
+        margin-bottom: 20px;
+      }
+      .kpi {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 14px 16px;
+        position: relative;
+        overflow: hidden;
+      }
+      .kpi::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: var(--accent, var(--blue));
+      }
+      .kpi-label {
+        font-size: 10px;
+        color: var(--muted);
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        margin-bottom: 6px;
+      }
+      .kpi-value {
+        font-size: 22px;
+        font-weight: 700;
+        color: var(--text);
+        line-height: 1;
+      }
+      .kpi-sub {
+        font-size: 10px;
+        color: var(--muted);
+        margin-top: 4px;
+      }
+
+      /* ── Grid sections ── */
+      .grid-2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        margin-bottom: 20px;
+      }
+      .grid-3 {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 16px;
+        margin-bottom: 20px;
+      }
+      @media (max-width: 900px) {
+        .grid-2,
+        .grid-3 {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .section {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        overflow: hidden;
+      }
+      .section-header {
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .section-title {
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--text);
+        letter-spacing: 0.5px;
+      }
+      .section-badge {
+        font-size: 10px;
+        color: var(--muted);
+        background: rgba(255, 255, 255, 0.06);
+        border-radius: 4px;
+        padding: 2px 7px;
+      }
+      .section-body {
+        padding: 14px 16px;
+      }
+
+      /* ── Chart ── */
+      .chart-wrap {
+        height: 120px;
+        position: relative;
+      }
+      canvas.chart {
+        width: 100% !important;
+        height: 120px !important;
+      }
+
+      /* ── Table ── */
+      .tbl {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      .tbl th {
+        font-size: 10px;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        color: var(--muted);
+        padding: 6px 10px;
+        text-align: left;
+        border-bottom: 1px solid var(--border);
+      }
+      .tbl td {
+        padding: 7px 10px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        font-size: 12px;
+      }
+      .tbl tr:last-child td {
+        border-bottom: none;
+      }
+      .tbl tr:hover td {
+        background: rgba(255, 255, 255, 0.03);
+      }
+      .pill {
+        display: inline-block;
+        border-radius: 4px;
+        padding: 1px 7px;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+      }
+      .pill-2xx {
+        background: rgba(63, 185, 80, 0.15);
+        color: var(--green);
+      }
+      .pill-4xx {
+        background: rgba(210, 153, 34, 0.15);
+        color: var(--yellow);
+      }
+      .pill-5xx {
+        background: rgba(248, 81, 73, 0.15);
+        color: var(--red);
+      }
+      .pill-ws {
+        background: rgba(188, 140, 255, 0.15);
+        color: var(--purple);
+      }
+      .pill-db {
+        background: rgba(255, 166, 87, 0.15);
+        color: var(--orange);
+      }
+      .pill-err {
+        background: rgba(248, 81, 73, 0.15);
+        color: var(--red);
+      }
+      .mono {
+        font-family: 'SF Mono', 'Fira Code', monospace;
+      }
+
+      /* ── Latency bar ── */
+      .lat-bar-wrap {
+        display: flex;
+        height: 6px;
+        border-radius: 3px;
+        overflow: hidden;
+        gap: 1px;
+      }
+      .lat-seg {
+        height: 100%;
+        border-radius: 1px;
+        min-width: 2px;
+      }
+
+      /* ── Log ── */
+      .log-wrap {
+        background: #080d14;
+        border-radius: 8px;
+        max-height: 320px;
+        overflow-y: auto;
+        padding: 10px 12px;
+        font-size: 11px;
+        line-height: 1.8;
+      }
+      .log-wrap::-webkit-scrollbar {
+        width: 3px;
+      }
+      .log-wrap::-webkit-scrollbar-thumb {
+        background: var(--border);
+        border-radius: 2px;
+      }
+      .log-line {
+        display: flex;
+        gap: 10px;
+        align-items: baseline;
+      }
+      .log-ts {
+        color: var(--muted);
+        flex-shrink: 0;
+        font-size: 10px;
+      }
+      .log-kind {
+        flex-shrink: 0;
+        width: 38px;
+        text-align: center;
+      }
+      .log-ms {
+        color: var(--muted);
+        font-size: 10px;
+        margin-left: auto;
+        flex-shrink: 0;
+      }
+      .log-label {
+        flex: 1;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .c-http {
+        color: var(--blue);
+      }
+      .c-ws {
+        color: var(--purple);
+      }
+      .c-db {
+        color: var(--orange);
+      }
+      .c-err {
+        color: var(--red);
+      }
+
+      /* ── WS clients ── */
+      .ws-clients {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 7px;
+      }
+      .ws-chip {
+        background: rgba(188, 140, 255, 0.1);
+        border: 1px solid rgba(188, 140, 255, 0.2);
+        border-radius: 6px;
+        padding: 4px 10px;
+        font-size: 11px;
+        color: var(--purple);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .ws-chip-dot {
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: var(--green);
+        animation: pulse 2s infinite;
+      }
+
+      /* ── Spinner ── */
+      .loading {
+        text-align: center;
+        padding: 40px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      /* ── Login overlay ── */
+      #login-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(13,17,23,.92);
+        backdrop-filter: blur(4px);
+        z-index: 9999;
+        align-items: center;
+        justify-content: center;
+      }
+      #login-overlay.show { display: flex; }
+      .login-box {
+        background: var(--panel);
+        border: 1px solid rgba(255,255,255,.1);
+        border-radius: 12px;
+        padding: 32px 36px;
+        width: 340px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+      .login-title {
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--text);
+        letter-spacing: .5px;
+      }
+      .login-title span { color: var(--blue); }
+      .login-desc { font-size: 11px; color: var(--muted); line-height: 1.6; }
+      .login-input {
+        background: var(--card);
+        border: 1px solid rgba(255,255,255,.1);
+        border-radius: 6px;
+        padding: 9px 12px;
+        color: var(--text);
+        font-family: 'SF Mono','Fira Code',monospace;
+        font-size: 12px;
+        outline: none;
+        width: 100%;
+        transition: border-color .15s;
+      }
+      .login-input:focus { border-color: rgba(88,166,255,.4); }
+      .login-input.err { border-color: var(--red); }
+      .login-btn {
+        background: rgba(88,166,255,.15);
+        border: 1px solid rgba(88,166,255,.25);
+        color: var(--blue);
+        border-radius: 6px;
+        padding: 9px;
+        font-family: inherit;
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: background .15s;
+      }
+      .login-btn:hover { background: rgba(88,166,255,.25); }
+      .login-err { font-size: 11px; color: var(--red); display: none; }
+      .login-err.show { display: block; }
+    </style>
+  </head>
+  <body>
+
+    <!-- Login overlay -->
+    <div id="login-overlay">
+      <div class="login-box">
+        <div class="login-title">PSDK <span>TELEMETRY</span></div>
+        <div class="login-desc">Entrez votre <code style="color:var(--blue)">ADMIN_KEY</code> pour accéder au dashboard.</div>
+        <input id="login-input" class="login-input" type="password" placeholder="ADMIN_KEY…" autocomplete="off"/>
+        <div id="login-err" class="login-err">Clé invalide — vérifiez votre ADMIN_KEY.</div>
+        <button class="login-btn" onclick="submitLogin()">Connexion →</button>
+      </div>
+    </div>
+
+    <!-- Topbar -->
+    <div class="topbar">
+      <div>
+        <div class="topbar-logo">PSDK <span>TELEMETRY</span></div>
+        <div class="topbar-sub" id="srv-uptime">Loading…</div>
+      </div>
+      <div class="topbar-right">
+        <div class="uptime" id="uptime-display">—</div>
+        <div class="live-badge">
+          <div class="live-dot"></div>
+          LIVE
+        </div>
+        <button class="refresh-btn" onclick="loadAll()">↻ Refresh</button>
+      </div>
+    </div>
+
+    <div class="main">
+      <!-- KPI -->
+      <div class="kpi-row" id="kpi-row">
+        <div class="loading" style="grid-column: 1/-1">Loading metrics…</div>
+      </div>
+
+      <!-- Graphs HTTP + WS -->
+      <div class="grid-2">
+        <div class="section">
+          <div class="section-header">
+            <div class="section-title">HTTP Requests / hour</div>
+            <div class="section-badge" id="chart-range">24h</div>
+          </div>
+          <div class="section-body">
+            <div class="chart-wrap"><canvas id="chart-http"></canvas></div>
+          </div>
+        </div>
+        <div class="section">
+          <div class="section-header">
+            <div class="section-title">WS Messages / hour</div>
+          </div>
+          <div class="section-body">
+            <div class="chart-wrap"><canvas id="chart-ws"></canvas></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Routes + WS types -->
+      <div class="grid-2">
+        <div class="section">
+          <div class="section-header">
+            <div class="section-title">HTTP Routes</div>
+            <div class="section-badge" id="route-count">—</div>
+          </div>
+          <div class="section-body" style="padding: 0">
+            <table class="tbl" id="routes-tbl">
+              <thead>
+                <tr>
+                  <th>Route</th>
+                  <th>Reqs</th>
+                  <th>Errors</th>
+                  <th>Avg ms</th>
+                  <th>Latency</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="section">
+          <div class="section-header">
+            <div class="section-title">WS Messages by type</div>
+            <div class="section-badge" id="ws-type-count">—</div>
+          </div>
+          <div class="section-body" style="padding: 0">
+            <table class="tbl" id="ws-tbl">
+              <thead>
+                <tr>
+                  <th>Type</th>
+                  <th>Count</th>
+                  <th>Errors</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- WS Clients -->
+      <div class="section" style="margin-bottom: 20px">
+        <div class="section-header">
+          <div class="section-title">Connected WebSocket Clients</div>
+          <div class="section-badge" id="ws-count">0</div>
+        </div>
+        <div class="section-body">
+          <div class="ws-clients" id="ws-clients">
+            <span style="color: var(--muted); font-size: 11px"
+              >No clients connected</span
+            >
+          </div>
+        </div>
+      </div>
+
+      <!-- DB stats + Errors -->
+      <div class="grid-2" style="margin-bottom: 20px">
+        <div class="section">
+          <div class="section-header">
+            <div class="section-title">MongoDB Latency / hour</div>
+          </div>
+          <div class="section-body">
+            <div class="chart-wrap"><canvas id="chart-db"></canvas></div>
+          </div>
+        </div>
+        <div class="section">
+          <div class="section-header">
+            <div class="section-title">Error Rate / hour</div>
+          </div>
+          <div class="section-body">
+            <div class="chart-wrap"><canvas id="chart-err"></canvas></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live event log -->
+      <div class="section" style="margin-bottom: 20px">
+        <div class="section-header">
+          <div class="section-title">Recent Events</div>
+          <div class="section-badge" id="events-count">—</div>
+        </div>
+        <div class="section-body" style="padding: 10px 14px">
+          <div class="log-wrap" id="event-log">
+            <div class="loading">Loading…</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- /main -->
+
+    <script>
+      // ═══════════════════════════════════
+      //  Config
+      // ═══════════════════════════════════
+      const API = ''; // même origin — le dashboard est servi par le serveur lui-même
+
+      let apiKey = localStorage.getItem('psdk_admin_key') || '';
+
+      function showLogin() {
+        document.getElementById('login-overlay').classList.add('show');
+        setTimeout(() => document.getElementById('login-input').focus(), 50);
+      }
+      function hideLogin() {
+        document.getElementById('login-overlay').classList.remove('show');
+      }
+      async function submitLogin() {
+        const val = document.getElementById('login-input').value.trim();
+        if (!val) return;
+        // Test the key
+        try {
+          const r = await fetch('/telemetry/summary', { headers: { 'x-admin-key': val } });
+          if (!r.ok) throw new Error();
+          apiKey = val;
+          localStorage.setItem('psdk_admin_key', apiKey);
+          document.getElementById('login-input').classList.remove('err');
+          document.getElementById('login-err').classList.remove('show');
+          hideLogin();
+          loadAll();
+        } catch {
+          document.getElementById('login-input').classList.add('err');
+          document.getElementById('login-err').classList.add('show');
+        }
+      }
+      // Allow Enter key in input
+      document.getElementById('login-input').addEventListener('keydown', e => {
+        if (e.key === 'Enter') submitLogin();
+      });
+
+      async function get(path) {
+        const r = await fetch(path, { headers: { 'x-admin-key': apiKey } });
+        if (r.status === 401) {
+          apiKey = '';
+          localStorage.removeItem('psdk_admin_key');
+          showLogin();
+          throw new Error(401);
+        }
+        if (!r.ok) throw new Error(r.status);
+        return r.json();
+      }
+
+      // ═══════════════════════════════════
+      //  Mini canvas chart (sans lib)
+      // ═══════════════════════════════════
+      function drawLineChart(canvasId, datasets, labels) {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        const dpr = window.devicePixelRatio || 1;
+        const W = canvas.parentElement.clientWidth;
+        const H = 120;
+
+        canvas.width = W * dpr;
+        canvas.height = H * dpr;
+        canvas.style.width = W + 'px';
+        canvas.style.height = H + 'px';
+        ctx.scale(dpr, dpr);
+        ctx.clearRect(0, 0, W, H);
+
+        if (!labels.length) {
+          ctx.fillStyle = '#7d8590';
+          ctx.font = '11px monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText('Pas encore de données', W / 2, H / 2);
+          return;
+        }
+
+        const PAD = { top: 8, right: 8, bottom: 22, left: 36 };
+        const cW = W - PAD.left - PAD.right;
+        const cH = H - PAD.top - PAD.bottom;
+
+        // Max global
+        const allVals = datasets.flatMap((d) => d.data);
+        const maxVal = Math.max(...allVals, 1);
+
+        // Grille horizontale
+        ctx.strokeStyle = 'rgba(255,255,255,.05)';
+        ctx.lineWidth = 1;
+        [0, 0.25, 0.5, 0.75, 1].forEach((t) => {
+          const y = PAD.top + cH * (1 - t);
+          ctx.beginPath();
+          ctx.moveTo(PAD.left, y);
+          ctx.lineTo(PAD.left + cW, y);
+          ctx.stroke();
+        });
+
+        // Labels axe Y
+        ctx.fillStyle = '#7d8590';
+        ctx.font = '9px monospace';
+        ctx.textAlign = 'right';
+        [0, 0.5, 1].forEach((t) => {
+          const y = PAD.top + cH * (1 - t);
+          ctx.fillText(Math.round(maxVal * t), PAD.left - 4, y + 3);
+        });
+
+        // Labels axe X
+        ctx.textAlign = 'center';
+        const step = Math.max(1, Math.floor(labels.length / 6));
+        labels.forEach((lbl, i) => {
+          if (i % step !== 0) return;
+          const x = PAD.left + (i / Math.max(labels.length - 1, 1)) * cW;
+          ctx.fillText(lbl, x, H - 4);
+        });
+
+        // Lignes
+        datasets.forEach(({ data, color, fill }) => {
+          const pts = data.map((v, i) => ({
+            x: PAD.left + (i / Math.max(data.length - 1, 1)) * cW,
+            y: PAD.top + cH * (1 - v / maxVal),
+          }));
+
+          // Fill
+          if (fill && pts.length > 1) {
+            ctx.beginPath();
+            ctx.moveTo(pts[0].x, PAD.top + cH);
+            pts.forEach((p) => ctx.lineTo(p.x, p.y));
+            ctx.lineTo(pts[pts.length - 1].x, PAD.top + cH);
+            ctx.closePath();
+            ctx.fillStyle = color
+              .replace(')', ',.08)')
+              .replace('rgb(', 'rgba(');
+            ctx.fill();
+          }
+
+          // Line
+          if (pts.length > 1) {
+            ctx.beginPath();
+            ctx.moveTo(pts[0].x, pts[0].y);
+            pts.forEach((p) => ctx.lineTo(p.x, p.y));
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.lineJoin = 'round';
+            ctx.stroke();
+          }
+
+          // Dots
+          pts.forEach((p) => {
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, 2.5, 0, Math.PI * 2);
+            ctx.fillStyle = color;
+            ctx.fill();
+          });
+        });
+      }
+
+      // ═══════════════════════════════════
+      //  Rendu
+      // ═══════════════════════════════════
+      function fmtMs(ms) {
+        if (ms === undefined || ms === null) return '—';
+        if (ms < 1000) return ms + 'ms';
+        return (ms / 1000).toFixed(1) + 's';
+      }
+
+      function fmtUptime(ms) {
+        const s = Math.floor(ms / 1000);
+        const m = Math.floor(s / 60);
+        const h = Math.floor(m / 60);
+        const d = Math.floor(h / 24);
+        if (d) return `${d}j ${h % 24}h`;
+        if (h) return `${h}h ${m % 60}m`;
+        if (m) return `${m}m ${s % 60}s`;
+        return `${s}s`;
+      }
+
+      function statusColor(status) {
+        if (!status) return '';
+        if (status < 300) return 'pill-2xx';
+        if (status < 500) return 'pill-4xx';
+        return 'pill-5xx';
+      }
+
+      function latBar(buckets) {
+        const total = buckets.reduce((a, b) => a + b, 0) || 1;
+        const colors = [
+          '#3fb950',
+          '#58a6ff',
+          '#d29922',
+          '#ffa657',
+          '#f85149',
+          '#ff6b6b',
+          '#ff0000',
+        ];
+        return `<div class="lat-bar-wrap" title="Histogramme de latence">
+    ${buckets
+      .map((b, i) => {
+        const pct = ((b / total) * 100).toFixed(1);
+        return `<div class="lat-seg" style="background:${colors[i]};width:${pct}%;opacity:.8" title="${['<10ms', '<50ms', '<100ms', '<250ms', '<500ms', '<1s', '≥1s'][i]}: ${b}"></div>`;
+      })
+      .join('')}
+  </div>`;
+      }
+
+      function renderKPIs(s) {
+        const connected = s.wsConnected || 0;
+        document.getElementById('kpi-row').innerHTML = `
+    <div class="kpi" style="--accent:var(--blue)">
+      <div class="kpi-label">HTTP Requests</div>
+      <div class="kpi-value">${s.httpRequests.toLocaleString()}</div>
+      <div class="kpi-sub">${s.reqPerMin}/min</div>
+    </div>
+    <div class="kpi" style="--accent:var(--red)">
+      <div class="kpi-label">HTTP Errors</div>
+      <div class="kpi-value">${s.httpErrors.toLocaleString()}</div>
+      <div class="kpi-sub">Rate: ${s.errorRate}%</div>
+    </div>
+    <div class="kpi" style="--accent:var(--green)">
+      <div class="kpi-label">Avg Latency</div>
+      <div class="kpi-value">${fmtMs(s.avgLatency)}</div>
+      <div class="kpi-sub">All routes</div>
+    </div>
+    <div class="kpi" style="--accent:var(--purple)">
+      <div class="kpi-label">WS Connected</div>
+      <div class="kpi-value">${connected}</div>
+      <div class="kpi-sub">${s.wsMessages} total msgs</div>
+    </div>
+    <div class="kpi" style="--accent:var(--orange)">
+      <div class="kpi-label">DB Queries</div>
+      <div class="kpi-value">${s.dbQueries.toLocaleString()}</div>
+      <div class="kpi-sub">${s.dbErrors} errors</div>
+    </div>
+    <div class="kpi" style="--accent:var(--yellow)">
+      <div class="kpi-label">Exceptions</div>
+      <div class="kpi-value">${s.uncaughtErrors}</div>
+      <div class="kpi-sub">Uncaught</div>
+    </div>
+  `;
+
+        document.getElementById('uptime-display').textContent =
+          'Uptime: ' + fmtUptime(s.uptime);
+
+        document.getElementById('srv-uptime').textContent =
+          'Started at ' + new Date(s.startedAt).toLocaleString('en-US');
+      }
+
+      function renderRoutes(routes) {
+        document.getElementById('route-count').textContent =
+          routes.length + ' routes';
+        const tbody = document.querySelector('#routes-tbl tbody');
+        if (!routes.length) {
+          tbody.innerHTML =
+            '<tr><td colspan="5" style="color:var(--muted);text-align:center;padding:16px">Aucune requête reçue</td></tr>';
+          return;
+        }
+        tbody.innerHTML = routes
+          .map(
+            (r) => `
+    <tr>
+      <td class="mono" style="font-size:11px;color:var(--blue)">${r.route}</td>
+      <td>${r.count}</td>
+      <td><span class="pill ${r.errors > 0 ? 'pill-4xx' : 'pill-2xx'}">${r.errors}</span></td>
+      <td style="color:${r.avgMs > 200 ? 'var(--yellow)' : r.avgMs > 500 ? 'var(--red)' : 'var(--green)'}">${r.avgMs}ms</td>
+      <td style="min-width:80px">${latBar(r.buckets)}</td>
+    </tr>`,
+          )
+          .join('');
+      }
+
+      function renderWsTypes(types) {
+        document.getElementById('ws-type-count').textContent =
+          types.length + ' types';
+        const tbody = document.querySelector('#ws-tbl tbody');
+        if (!types.length) {
+          tbody.innerHTML =
+            '<tr><td colspan="3" style="color:var(--muted);text-align:center;padding:16px">Aucun message WS</td></tr>';
+          return;
+        }
+        tbody.innerHTML = types
+          .map(
+            (t) => `
+    <tr>
+      <td><span class="pill pill-ws">${t.type}</span></td>
+      <td>${t.count}</td>
+      <td><span class="pill ${t.errors > 0 ? 'pill-err' : 'pill-2xx'}">${t.errors}</span></td>
+    </tr>`,
+          )
+          .join('');
+      }
+
+      function renderWsClients(clients) {
+        const el = document.getElementById('ws-clients');
+        const ct = document.getElementById('ws-count');
+        ct.textContent = clients.length;
+        if (!clients.length) {
+          el.innerHTML =
+            '<span style="color:var(--muted);font-size:11px">Aucun client connecté</span>';
+          return;
+        }
+        el.innerHTML = clients
+          .map(
+            (c) => `
+    <div class="ws-chip">
+      <div class="ws-chip-dot"></div>
+      ${c.trainerName} <span style="color:var(--muted);font-size:10px">${c.playerId}</span>
+    </div>`,
+          )
+          .join('');
+      }
+
+      function renderEvents(events) {
+        document.getElementById('events-count').textContent =
+          events.length + ' events';
+        const el = document.getElementById('event-log');
+        if (!events.length) {
+          el.innerHTML =
+            '<span style="color:var(--muted)">Aucun événement</span>';
+          return;
+        }
+        // Plus récents en premier
+        el.innerHTML = [...events]
+          .reverse()
+          .map((e) => {
+            const t = new Date(e.ts).toLocaleTimeString('fr', {
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit',
+            });
+            const cls =
+              { http: 'c-http', ws: 'c-ws', db: 'c-db', error: 'c-err' }[
+                e.kind
+              ] || '';
+            const statusPill = e.status
+              ? ` <span class="pill ${statusColor(e.status)}">${e.status}</span>`
+              : '';
+            return `<div class="log-line">
+      <span class="log-ts">${t}</span>
+      <span class="log-kind pill pill-${e.kind === 'error' ? 'err' : e.kind === 'http' ? '2xx' : e.kind === 'ws' ? 'ws' : 'db'}">${e.kind.toUpperCase()}</span>
+      <span class="log-label ${cls}">${e.label}${statusPill}</span>
+      ${e.ms !== undefined ? `<span class="log-ms">${fmtMs(e.ms)}</span>` : ''}
+    </div>`;
+          })
+          .join('');
+      }
+
+      function renderCharts(snapshots) {
+        if (!snapshots.length) return;
+        const labels = snapshots.map((s) => {
+          const d = new Date(s.hour);
+          return d.getHours() + 'h';
+        });
+
+        drawLineChart(
+          'chart-http',
+          [
+            {
+              data: snapshots.map((s) => s.httpCount),
+              color: 'rgb(88,166,255)',
+              fill: true,
+            },
+            {
+              data: snapshots.map((s) => s.httpErrors),
+              color: 'rgb(248,81,73)',
+              fill: false,
+            },
+          ],
+          labels,
+        );
+
+        drawLineChart(
+          'chart-ws',
+          [
+            {
+              data: snapshots.map((s) => s.wsMessages),
+              color: 'rgb(188,140,255)',
+              fill: true,
+            },
+            {
+              data: snapshots.map((s) => s.wsConnects),
+              color: 'rgb(63,185,80)',
+              fill: false,
+            },
+          ],
+          labels,
+        );
+
+        drawLineChart(
+          'chart-db',
+          [
+            {
+              data: snapshots.map((s) => s.dbQueries),
+              color: 'rgb(255,166,87)',
+              fill: true,
+            },
+            {
+              data: snapshots.map((s) => s.avgLatencyMs),
+              color: 'rgb(210,153,34)',
+              fill: false,
+            },
+          ],
+          labels,
+        );
+
+        drawLineChart(
+          'chart-err',
+          [
+            {
+              data: snapshots.map((s) => s.httpErrors),
+              color: 'rgb(248,81,73)',
+              fill: true,
+            },
+            {
+              data: snapshots.map((s) => s.dbErrors),
+              color: 'rgb(255,166,87)',
+              fill: false,
+            },
+          ],
+          labels,
+        );
+      }
+
+      // ═══════════════════════════════════
+      //  Chargement
+      // ═══════════════════════════════════
+      async function loadAll() {
+        try {
+          const [summary, routes, wsTypes, wsClients, events, snapshots] =
+            await Promise.all([
+              get('/telemetry/summary'),
+              get('/telemetry/routes'),
+              get('/telemetry/ws-types'),
+              get('/telemetry/ws-clients'),
+              get('/telemetry/events?limit=100'),
+              get('/telemetry/snapshots'),
+            ]);
+
+          renderKPIs(summary);
+          renderRoutes(routes);
+          renderWsTypes(wsTypes);
+          renderWsClients(wsClients);
+          renderEvents(events);
+          renderCharts(snapshots);
+        } catch (e) {
+          console.error('[Dashboard] Erreur chargement:', e);
+        }
+      }
+
+      // ═══════════════════════════════════
+      //  Auto-refresh 10s
+      // ═══════════════════════════════════
+      if (apiKey) {
+        loadAll();
+      } else {
+        showLogin();
+      }
+      setInterval(() => { if (apiKey) loadAll(); }, 10_000);
+
+      // Redessine les charts au resize
+      window.addEventListener('resize', () => {
+        get('/telemetry/snapshots')
+          .then(renderCharts)
+          .catch(() => {});
+      });
+    </script>
+  </body>
+</html>

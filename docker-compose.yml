@@ -1,45 +1,56 @@
 services:
-  online_full:
-    container_name: online
+
+  # ── Application server ──────────────────────────────────────────────────────
+  server:
+    container_name: psdk_online_server
     build:
       context: .
-      dockerfile: Dockerfile_Server
+      dockerfile: Dockerfile
     networks:
-      - online_server_network
+      - psdk_network
     ports:
-      - "8181:8181"
+      - "${PORT:-3000}:${PORT:-3000}"
     environment:
+      - NODE_ENV=${NODE_ENV:-production}
+      - PORT=${PORT:-3000}
+      # MongoDB — construit depuis les variables séparées (style ancien serveur)
       - DB_NAME=${DB_NAME}
-      - DB_HOST=${DB_HOST}
-      - DB_PORT=${DB_PORT}
+      - DB_HOST=mongodb
+      - DB_PORT=${DB_PORT:-27017}
       - DB_USER=${DB_USER}
       - DB_PSWD=${DB_PSWD}
-      - SERVER_PORT=${SERVER_PORT}
-      - DAYS_PLAYER_INACTIVE=${DAYS_PLAYER_INACTIVE}
-      - DAYS_FRIEND_INACTIVE_REQUEST=${DAYS_FRIEND_INACTIVE_REQUEST}
-      - MAX_LEVEL=${MAX_LEVEL}
+      # Auth
+      - API_KEY=${API_KEY}
+      - ADMIN_KEY=${ADMIN_KEY}
+      # GTS
+      - GTS_SPECIES_BLACKLIST=${GTS_SPECIES_BLACKLIST:-}
+      - GTS_EXPIRY_DAYS=${GTS_EXPIRY_DAYS:-30}
+      # PokeBank
+      - POKEBANK_MAX_BOXES=${POKEBANK_MAX_BOXES:-8}
+      - POKEBANK_BOX_SIZE=${POKEBANK_BOX_SIZE:-30}
     restart: on-failure:5
     volumes:
-      - online_data:/usr/src/app
+      - server_logs:/usr/src/app/logs
     depends_on:
       mongodb:
         condition: service_healthy
 
+  # ── MongoDB ─────────────────────────────────────────────────────────────────
   mongodb:
-    container_name: mongodb
+    container_name: psdk_online_mongo
     build:
       context: .
-      dockerfile: Dockerfile_MongoDB
+      dockerfile: Dockerfile.mongodb
     networks:
-      - online_server_network
+      - psdk_network
     ports:
       - "27017:27017"
     environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_INITDB_ROOT_USERNAME}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_INITDB_ROOT_PASSWORD}
       - DB_NAME=${DB_NAME}
       - DB_USER=${DB_USER}
       - DB_PSWD=${DB_PSWD}
-      - MONGO_INITDB_ROOT_USERNAME=${MONGO_INITDB_ROOT_USERNAME}
-      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_INITDB_ROOT_PASSWORD}
     volumes:
       - mongo_data:/data/db
     healthcheck:
@@ -48,10 +59,11 @@ services:
       timeout: 30s
       retries: 5
 
+# ── Networks & Volumes ─────────────────────────────────────────────────────────
 networks:
-  online_server_network:
+  psdk_network:
     driver: bridge
 
 volumes:
   mongo_data:
-  online_data:
+  server_logs:
