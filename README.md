@@ -7,20 +7,24 @@ A lightweight, dependency-minimal HTTP + WebSocket server for PSDK multiplayer f
 ## Features
 
 ### 🔐 Authentication
+
 All requests are protected by a shared API key (`x-api-key` header for HTTP, `?apiKey=` query param for WebSocket). A separate admin key (`x-admin-key`) gates sensitive endpoints such as Mystery Gift administration and telemetry data.
 
 ### 👥 Friends
+
 - Send, accept, decline, and cancel friend requests
 - List current friends and pending requests
 - Remove a friend
 
 ### 🔄 GTS (Global Trade System)
+
 - Deposit a creature with a trade request (species + level range)
 - Browse all active deposits
 - Execute a trade between two players
 - Configurable species blacklist and automatic expiry (TTL via MongoDB)
 
 ### 🎁 Mystery Gifts
+
 - **Internet gifts** — publicly listed, claimable by any connected player
 - **Code gifts** — redeemed with a secret code
 - Supports creatures, eggs, and items (with quantity) in a single gift
@@ -28,11 +32,13 @@ All requests are protected by a shared API key (`x-api-key` header for HTTP, `?a
 - Full admin API: create, update, activate/deactivate, delete gifts
 
 ### 🏦 PokéBank
+
 - Per-player cloud storage organised in boxes and slots
 - Configurable box count (`POKEBANK_MAX_BOXES`) and box size (`POKEBANK_BOX_SIZE`)
 - Deposit and withdraw creatures; server treats creature data as opaque (no schema lock-in)
 
 ### ⚡ WebSocket — Real-time
+
 - Single `/ws` endpoint shared with HTTP (same port)
 - Player authentication on connection (`playerId` + `apiKey` as query params)
 - Automatic session replacement when the same player reconnects
@@ -41,6 +47,7 @@ All requests are protected by a shared API key (`x-api-key` header for HTTP, `?a
 - Keepalive with `PING` / `PONG`
 
 ### 📊 Telemetry Dashboard
+
 Built-in, zero-dependency monitoring available at `http://localhost:<PORT>/telemetry`.
 
 - Live counters: HTTP requests, WebSocket connections, DB queries, errors
@@ -50,17 +57,19 @@ Built-in, zero-dependency monitoring available at `http://localhost:<PORT>/telem
 - Ring buffer of the last 200 events (HTTP, WS, DB, errors)
 
 ### 📖 Swagger / OpenAPI
+
 Auto-generated API documentation at `http://localhost:<PORT>/api-docs` — no external service required.
 
 ### 🩺 Health Check
+
 `GET /health` returns `{ status: "ok", uptime: <seconds> }` with no authentication required. Suitable for load balancer and uptime monitor probes.
 
 ---
 
 ## Requirements
 
-- **Node.js** ≥ 18 (LTS recommended)
-- **MongoDB** ≥ 6
+- **Node.js** ≥ 22
+- **MongoDB** ≥ 8
 - **Docker** (optional but recommended for deployment)
 
 ---
@@ -153,33 +162,33 @@ Logs are written to `logs/YYYY-MM-DD.log` alongside console output.
 All routes are prefixed with `/api/v1` and require the `x-api-key` header.
 Routes marked 🔒 additionally require `x-admin-key`.
 
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/api/v1/auth/register` | Register a new player |
-| GET | `/api/v1/friends` | List friends |
-| POST | `/api/v1/friends/request` | Send a friend request |
-| POST | `/api/v1/friends/accept` | Accept a request |
-| POST | `/api/v1/friends/decline` | Decline a request |
-| DELETE | `/api/v1/friends` | Remove a friend |
-| GET | `/api/v1/gts/list` | Browse GTS deposits |
-| POST | `/api/v1/gts/deposit` | Deposit a creature |
-| POST | `/api/v1/gts/trade` | Execute a trade |
-| DELETE | `/api/v1/gts/withdraw` | Withdraw your deposit |
-| GET | `/api/v1/mystery-gift/internet` | List claimable internet gifts |
-| POST | `/api/v1/mystery-gift/claim/internet/:giftId` | Claim an internet gift |
-| POST | `/api/v1/mystery-gift/claim/code` | Claim a gift by code |
-| 🔒 POST | `/api/v1/mystery-gift/admin` | Create a gift |
-| 🔒 PATCH | `/api/v1/mystery-gift/admin/:giftId` | Update a gift |
-| 🔒 DELETE | `/api/v1/mystery-gift/admin/:giftId` | Delete a gift |
-| GET | `/api/v1/bank/boxes` | List player bank boxes |
-| POST | `/api/v1/bank/deposit` | Deposit a creature |
-| POST | `/api/v1/bank/withdraw` | Withdraw a creature |
-| GET | `/telemetry` | Dashboard (browser, no auth) |
-| 🔒 GET | `/telemetry/summary` | JSON summary |
-| 🔒 GET | `/telemetry/routes` | Per-route stats |
-| 🔒 GET | `/telemetry/events` | Recent event log |
-| GET | `/health` | Health check (no auth) |
-| GET | `/api-docs` | Swagger UI |
+| Method    | Path                                          | Description                   |
+| --------- | --------------------------------------------- | ----------------------------- |
+| POST      | `/api/v1/auth/register`                       | Register a new player         |
+| GET       | `/api/v1/friends`                             | List friends                  |
+| POST      | `/api/v1/friends/request`                     | Send a friend request         |
+| POST      | `/api/v1/friends/accept`                      | Accept a request              |
+| POST      | `/api/v1/friends/decline`                     | Decline a request             |
+| DELETE    | `/api/v1/friends`                             | Remove a friend               |
+| GET       | `/api/v1/gts/list`                            | Browse GTS deposits           |
+| POST      | `/api/v1/gts/deposit`                         | Deposit a creature            |
+| POST      | `/api/v1/gts/trade`                           | Execute a trade               |
+| DELETE    | `/api/v1/gts/withdraw`                        | Withdraw your deposit         |
+| GET       | `/api/v1/mystery-gift/internet`               | List claimable internet gifts |
+| POST      | `/api/v1/mystery-gift/claim/internet/:giftId` | Claim an internet gift        |
+| POST      | `/api/v1/mystery-gift/claim/code`             | Claim a gift by code          |
+| 🔒 POST   | `/api/v1/mystery-gift/admin`                  | Create a gift                 |
+| 🔒 PATCH  | `/api/v1/mystery-gift/admin/:giftId`          | Update a gift                 |
+| 🔒 DELETE | `/api/v1/mystery-gift/admin/:giftId`          | Delete a gift                 |
+| GET       | `/api/v1/bank/boxes`                          | List player bank boxes        |
+| POST      | `/api/v1/bank/deposit`                        | Deposit a creature            |
+| POST      | `/api/v1/bank/withdraw`                       | Withdraw a creature           |
+| GET       | `/telemetry`                                  | Dashboard (browser, no auth)  |
+| 🔒 GET    | `/telemetry/summary`                          | JSON summary                  |
+| 🔒 GET    | `/telemetry/routes`                           | Per-route stats               |
+| 🔒 GET    | `/telemetry/events`                           | Recent event log              |
+| GET       | `/health`                                     | Health check (no auth)        |
+| GET       | `/api-docs`                                   | Swagger UI                    |
 
 Full request/response schemas are available at `/api-docs`.
 
@@ -191,23 +200,23 @@ Connect at `ws://localhost:<PORT>/ws?apiKey=<API_KEY>&playerId=<ID>&trainerName=
 
 All messages use the format `{ "type": "...", "payload": { ... } }`.
 
-| Type | Direction | Description |
-|------|-----------|-------------|
-| `PING` | → server | Keepalive |
-| `PONG` | ← server | Keepalive response |
-| `BATTLE_CHALLENGE` | → server | Challenge another player |
-| `BATTLE_ACCEPT` | → server | Accept a challenge |
-| `BATTLE_DECLINE` | → server | Decline a challenge |
-| `BATTLE_MOVE` | → server | Send a move |
-| `BATTLE_FLEE` | → server | Flee from battle |
-| `BATTLE_RESULT` | → server | Report battle outcome |
-| `TRADE_REQUEST` | → server | Request a trade |
-| `TRADE_ACCEPT` | → server | Accept a trade |
-| `TRADE_DECLINE` | → server | Decline a trade |
-| `TRADE_OFFER` | → server | Send a trade offer |
-| `TRADE_CONFIRM` | → server | Confirm the trade |
-| `TRADE_CANCEL` | → server | Cancel the trade |
-| `ERROR` | ← server | Error notification |
+| Type               | Direction | Description              |
+| ------------------ | --------- | ------------------------ |
+| `PING`             | → server  | Keepalive                |
+| `PONG`             | ← server  | Keepalive response       |
+| `BATTLE_CHALLENGE` | → server  | Challenge another player |
+| `BATTLE_ACCEPT`    | → server  | Accept a challenge       |
+| `BATTLE_DECLINE`   | → server  | Decline a challenge      |
+| `BATTLE_MOVE`      | → server  | Send a move              |
+| `BATTLE_FLEE`      | → server  | Flee from battle         |
+| `BATTLE_RESULT`    | → server  | Report battle outcome    |
+| `TRADE_REQUEST`    | → server  | Request a trade          |
+| `TRADE_ACCEPT`     | → server  | Accept a trade           |
+| `TRADE_DECLINE`    | → server  | Decline a trade          |
+| `TRADE_OFFER`      | → server  | Send a trade offer       |
+| `TRADE_CONFIRM`    | → server  | Confirm the trade        |
+| `TRADE_CANCEL`     | → server  | Cancel the trade         |
+| `ERROR`            | ← server  | Error notification       |
 
 ---
 
