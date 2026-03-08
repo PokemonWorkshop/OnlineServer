@@ -170,7 +170,6 @@ const MysteryGiftSchema = new Schema<IMysteryGift>(
     validFrom: { type: Date, default: null },
     validTo: {
       type: Date,
-      default: null,
       validate: {
         validator(this: IMysteryGift, v: Date) {
           return !this.validFrom || !v || v > this.validFrom;
@@ -194,7 +193,8 @@ MysteryGiftSchema.pre('save', function (next) {
     this.validFrom = null;
     this.validTo = null;
   }
-  next();
+
+  next;
 });
 
 // ─── Instance method ────────────────────────────────────────────────────────
