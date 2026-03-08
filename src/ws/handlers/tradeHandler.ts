@@ -1,42 +1,95 @@
 import { AuthenticatedWs, send } from '../types';
+import { BaseRoom, PendingRequest } from '../BaseRoom';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// ─── TradeSession ─────────────────────────────────────────────────────────────
 
 /**
  * An active trade session between two players.
  *
  * @remarks
- * A session becomes "complete" when both players have placed an offer
- * **and** both have confirmed. Changing an offer resets both confirmations.
+ * Extends {@link BaseRoom} with trade-specific state:
+ * - Per-player offers
+ * - Double-confirmation logic (both must confirm before the swap executes)
+ * Changing an offer resets both confirmations.
  */
-interface TradeSession {
-  /** Unique session identifier (format: `trade_<ts>_<rand>`). */
-  id:         string;
-  player1:    AuthenticatedWs;
-  player2:    AuthenticatedWs;
+class TradeSession extends BaseRoom {
   /** Creature currently offered by player 1, or `undefined` if not yet placed. */
-  offer1?:    Record<string, unknown>;
+  offer1?: Record<string, unknown>;
   /** Creature currently offered by player 2, or `undefined` if not yet placed. */
-  offer2?:    Record<string, unknown>;
+  offer2?: Record<string, unknown>;
   /** Whether player 1 has confirmed the current offers. */
-  confirmed1: boolean;
+  confirmed1 = false;
   /** Whether player 2 has confirmed the current offers. */
-  confirmed2: boolean;
+  confirmed2 = false;
+
+  // ── Static registry ─────────────────────────────────────────────────────────
+
+  static readonly activeTrades = new Map<string, TradeSession>();
+  static readonly pendingRequests = new Map<string, PendingRequest>();
+
+  // ── Constructor ─────────────────────────────────────────────────────────────
+
+  constructor(player1: AuthenticatedWs, player2: AuthenticatedWs) {
+    super(player1, player2, 'trade');
+    TradeSession.activeTrades.set(this.id, this);
+  }
+
+  // ── Trade-specific helpers ───────────────────────────────────────────────────
+
+  /**
+   * Update an offer for the given player and reset both confirmations.
+   * @returns `true` if `ws` is a participant, `false` otherwise.
+   */
+  setOffer(ws: AuthenticatedWs, creature: Record<string, unknown>): boolean {
+    const isP1 = ws.playerId === this.player1.playerId;
+    const isP2 = ws.playerId === this.player2.playerId;
+
+    if (!isP1 && !isP2) return false;
+
+    if (isP1) this.offer1 = creature;
+    else this.offer2 = creature;
+
+    // Reset confirmations whenever an offer changes
+    this.confirmed1 = false;
+    this.confirmed2 = false;
+
+    return true;
+  }
+
+  /**
+   * Mark the given player's confirmation.
+   * @returns `true` if both players have now confirmed **and** placed offers.
+   */
+  confirm(ws: AuthenticatedWs): boolean {
+    const isP1 = ws.playerId === this.player1.playerId;
+    if (isP1) this.confirmed1 = true;
+    else this.confirmed2 = true;
+
+    return this.confirmed1 && this.confirmed2 && !!this.offer1 && !!this.offer2;
+  }
+
+  /**
+   * Execute the swap and close the session.
+   * Sends `TRADE_COMPLETE` to each player with their newly received creature.
+   */
+  complete(): void {
+    this.sendTo(this.player1, 'TRADE_COMPLETE', {
+      yourNewCreature: this.offer2,
+    });
+    this.sendTo(this.player2, 'TRADE_COMPLETE', {
+      yourNewCreature: this.offer1,
+    });
+    this.close();
+  }
+
+  // ── Lifecycle override ───────────────────────────────────────────────────────
+
+  /** Remove from registry then delegate to base teardown. */
+  override close(): void {
+    TradeSession.activeTrades.delete(this.id);
+    super.close();
+  }
 }
-
-// ─── State ────────────────────────────────────────────────────────────────────
-
-/**
- * Pending trade requests indexed by the requester's `playerId`.
- * @internal
- */
-const pendingTrades = new Map<string, { from: AuthenticatedWs; to: string }>();
-
-/**
- * Active trade sessions indexed by `sessionId`.
- * @internal
- */
-const activeTrades = new Map<string, TradeSession>();
 
 // ─── Handler ──────────────────────────────────────────────────────────────────
 
@@ -60,113 +113,111 @@ const activeTrades = new Map<string, TradeSession>();
  * @param clients - Global connected-clients map used to locate targets.
  */
 export function handleTradeMessage(
-  ws:      AuthenticatedWs,
-  type:    string,
+  ws: AuthenticatedWs,
+  type: string,
   payload: any,
   clients: Map<string, AuthenticatedWs>,
 ): void {
   switch (type) {
-
-    // ── Send a trade request ────────────────────────────────────────────────
+    // ── Send a trade request ──────────────────────────────────────────────────
     case 'TRADE_REQUEST': {
       const target = clients.get(payload?.targetPlayerId);
-      if (!target)  { send(ws, 'ERROR', { message: 'Player not found or offline' }); return; }
-      if (ws.roomId){ send(ws, 'ERROR', { message: 'You are already in a trade' });  return; }
+      if (!target) {
+        send(ws, 'ERROR', { message: 'Player not found or offline' });
+        return;
+      }
+      if (ws.roomId) {
+        send(ws, 'ERROR', { message: 'You are already in a trade' });
+        return;
+      }
 
-      pendingTrades.set(ws.playerId, { from: ws, to: payload.targetPlayerId });
-      send(target, 'TRADE_REQUEST', { requesterId: ws.playerId, requesterName: ws.trainerName });
+      TradeSession.pendingRequests.set(ws.playerId, {
+        from: ws,
+        to: payload.targetPlayerId,
+      });
+      send(target, 'TRADE_REQUEST', {
+        requesterId: ws.playerId,
+        requesterName: ws.trainerName,
+      });
       break;
     }
 
-    // ── Accept the trade ────────────────────────────────────────────────────
+    // ── Accept the trade ──────────────────────────────────────────────────────
     case 'TRADE_ACCEPT': {
-      const pending = pendingTrades.get(payload?.requesterId);
-      if (!pending || pending.to !== ws.playerId) { send(ws, 'ERROR', { message: 'No trade request to accept from this player' }); return; }
-      if (ws.roomId)                              { send(ws, 'ERROR', { message: 'You are already in a trade' }); return; }
+      const pending = TradeSession.pendingRequests.get(payload?.requesterId);
+      if (!pending || pending.to !== ws.playerId) {
+        send(ws, 'ERROR', {
+          message: 'No trade request to accept from this player',
+        });
+        return;
+      }
+      if (ws.roomId) {
+        send(ws, 'ERROR', { message: 'You are already in a trade' });
+        return;
+      }
 
-      pendingTrades.delete(payload.requesterId);
+      TradeSession.pendingRequests.delete(payload.requesterId);
 
-      const sessionId = `trade_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-      const session: TradeSession = {
-        id:         sessionId,
-        player1:    pending.from,
-        player2:    ws,
-        confirmed1: false,
-        confirmed2: false,
-      };
+      const session = new TradeSession(pending.from, ws);
 
-      activeTrades.set(sessionId, session);
-      pending.from.roomId = sessionId;
-      ws.roomId           = sessionId;
-
-      send(pending.from, 'TRADE_ACCEPT', { sessionId });
-      send(ws,           'TRADE_ACCEPT', { sessionId });
+      session.sendTo(pending.from, 'TRADE_ACCEPT', { sessionId: session.id });
+      session.sendTo(ws, 'TRADE_ACCEPT', { sessionId: session.id });
       break;
     }
 
-    // ── Decline the trade ───────────────────────────────────────────────────
+    // ── Decline the trade ─────────────────────────────────────────────────────
     case 'TRADE_DECLINE': {
-      const pending = pendingTrades.get(payload?.requesterId);
+      const pending = TradeSession.pendingRequests.get(payload?.requesterId);
       if (pending) {
-        pendingTrades.delete(payload.requesterId);
+        TradeSession.pendingRequests.delete(payload.requesterId);
         send(pending.from, 'TRADE_DECLINE', { by: ws.trainerName });
       }
       break;
     }
 
-    // ── Place a creature on the trade table ─────────────────────────────────
+    // ── Place a creature on the trade table ───────────────────────────────────
     case 'TRADE_OFFER': {
-      if (!ws.roomId) { send(ws, 'ERROR', { message: 'You are not in a trade' }); return; }
+      if (!ws.roomId) {
+        send(ws, 'ERROR', { message: 'You are not in a trade' });
+        return;
+      }
 
-      const session = activeTrades.get(ws.roomId);
+      const session = TradeSession.activeTrades.get(ws.roomId);
       if (!session) return;
 
-      const isP1 = session.player1.playerId === ws.playerId;
-      if (isP1) session.offer1 = payload?.creature;
-      else      session.offer2 = payload?.creature;
-
-      // Changing an offer resets both confirmations
-      session.confirmed1 = false;
-      session.confirmed2 = false;
-
-      const opponent = isP1 ? session.player2 : session.player1;
-      send(opponent, 'TRADE_OFFER', { from: ws.playerId, creature: payload?.creature });
+      session.setOffer(ws, payload?.creature);
+      session.sendToOpponent(ws, 'TRADE_OFFER', {
+        from: ws.playerId,
+        creature: payload?.creature,
+      });
       break;
     }
 
-    // ── Confirm the current offers ──────────────────────────────────────────
+    // ── Confirm the current offers ────────────────────────────────────────────
     case 'TRADE_CONFIRM': {
       if (!ws.roomId) return;
 
-      const session = activeTrades.get(ws.roomId);
+      const session = TradeSession.activeTrades.get(ws.roomId);
       if (!session) return;
 
-      const isP1 = session.player1.playerId === ws.playerId;
-      if (isP1) session.confirmed1 = true;
-      else      session.confirmed2 = true;
+      const bothConfirmed = session.confirm(ws);
+      session.sendToOpponent(ws, 'TRADE_CONFIRM', { from: ws.playerId });
 
-      const opponent = isP1 ? session.player2 : session.player1;
-      send(opponent, 'TRADE_CONFIRM', { from: ws.playerId });
-
-      // Both confirmed AND placed an offer → execute the trade
-      if (session.confirmed1 && session.confirmed2 && session.offer1 && session.offer2) {
-        send(session.player1, 'TRADE_COMPLETE', { yourNewCreature: session.offer2 });
-        send(session.player2, 'TRADE_COMPLETE', { yourNewCreature: session.offer1 });
-        closeTradeSession(session);
+      if (bothConfirmed) {
+        session.complete();
       }
       break;
     }
 
-    // ── Cancel the trade ────────────────────────────────────────────────────
+    // ── Cancel the trade ──────────────────────────────────────────────────────
     case 'TRADE_CANCEL': {
       if (!ws.roomId) return;
 
-      const session = activeTrades.get(ws.roomId);
+      const session = TradeSession.activeTrades.get(ws.roomId);
       if (!session) return;
 
-      const opponent = session.player1.playerId === ws.playerId ? session.player2 : session.player1;
-      send(opponent, 'TRADE_CANCEL', { by: ws.trainerName });
-      closeTradeSession(session);
+      session.sendToOpponent(ws, 'TRADE_CANCEL', { by: ws.trainerName });
+      session.close();
       break;
     }
   }
@@ -185,29 +236,16 @@ export function handleTradeMessage(
  * @param ws - The socket that is closing.
  */
 export function cleanupTrade(ws: AuthenticatedWs): void {
-  pendingTrades.delete(ws.playerId);
+  TradeSession.pendingRequests.delete(ws.playerId);
 
   if (ws.roomId) {
-    const session = activeTrades.get(ws.roomId);
+    const session = TradeSession.activeTrades.get(ws.roomId);
     if (session) {
-      const opponent = session.player1.playerId === ws.playerId ? session.player2 : session.player1;
-      send(opponent, 'TRADE_CANCEL', { by: ws.trainerName, reason: 'disconnected' });
-      closeTradeSession(session);
+      session.sendToOpponent(ws, 'TRADE_CANCEL', {
+        by: ws.trainerName,
+        reason: 'disconnected',
+      });
+      session.close();
     }
   }
-}
-
-// ─── Internal ─────────────────────────────────────────────────────────────────
-
-/**
- * Closes a trade session: clears both players' `roomId` and removes the session
- * from the active map.
- *
- * @param session - The session to close.
- * @internal
- */
-function closeTradeSession(session: TradeSession): void {
-  session.player1.roomId = undefined;
-  session.player2.roomId = undefined;
-  activeTrades.delete(session.id);
 }
