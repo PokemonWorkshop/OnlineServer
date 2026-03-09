@@ -1,6 +1,6 @@
 services:
 
-  # ── Application server ──────────────────────────────────────────────────────
+  # ── Application server ─────────────────────────────────────────────────────
   server:
     container_name: psdk_online_server
     build:
@@ -13,7 +13,7 @@ services:
     environment:
       - NODE_ENV=${NODE_ENV:-production}
       - PORT=${PORT:-3000}
-      # MongoDB — construit depuis les variables séparées (style ancien serveur)
+      # MongoDB connection — assembled from individual variables in src/config/env.ts
       - DB_NAME=${DB_NAME}
       - DB_HOST=mongodb
       - DB_PORT=${DB_PORT:-27017}
@@ -35,7 +35,7 @@ services:
       mongodb:
         condition: service_healthy
 
-  # ── MongoDB ─────────────────────────────────────────────────────────────────
+  # ── MongoDB ────────────────────────────────────────────────────────────────
   mongodb:
     container_name: psdk_online_mongo
     build:
@@ -46,20 +46,26 @@ services:
     ports:
       - "27017:27017"
     environment:
-      - MONGO_INITDB_ROOT_USERNAME=${MONGO_INITDB_ROOT_USERNAME}
-      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_INITDB_ROOT_PASSWORD}
-      - DB_NAME=${DB_NAME}
-      - DB_USER=${DB_USER}
-      - DB_PSWD=${DB_PSWD}
+      # Root admin credentials — used internally by MongoDB on first startup only.
+      # The init script uses these to create the application user (DB_USER/DB_PSWD).
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: ${DB_NAME}
+      # Application user — passed to init_mongo.sh via environment
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PSWD: ${DB_PSWD}
     volumes:
       - mongo_data:/data/db
     healthcheck:
-      test: ["CMD", "mongosh", "--quiet", "localhost:27017", "--eval", "db.adminCommand('ping')"]
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok", "localhost:27017/admin"]
       interval: 10s
-      timeout: 30s
+      timeout: 10s
       retries: 5
+      start_period: 20s
+    restart: unless-stopped
 
-# ── Networks & Volumes ─────────────────────────────────────────────────────────
+# ── Networks & Volumes ──────────────────────────────────────────────────────
 networks:
   psdk_network:
     driver: bridge

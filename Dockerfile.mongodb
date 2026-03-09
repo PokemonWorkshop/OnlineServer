@@ -1,4 +1,8 @@
-FROM mongo:8.0.13-noble
+FROM mongo:8.0-noble
 
+# Copy the initialization script.
+# MongoDB runs all scripts in /docker-entrypoint-initdb.d/ on first startup
+# (i.e. when the data directory is empty). The script creates the application
+# database user with readWrite access to the configured database.
 COPY init_mongo.sh /docker-entrypoint-initdb.d/init_mongo.sh
 RUN chmod +x /docker-entrypoint-initdb.d/init_mongo.sh

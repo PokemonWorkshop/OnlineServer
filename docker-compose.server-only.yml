@@ -1,7 +1,8 @@
-services:
+# Use this file when you have an existing MongoDB instance (local, Atlas, or remote VM).
+# Set DB_HOST in your .env to point to that instance.
+# Set DB_USER and DB_PSWD if authentication is required.
 
-  # Utiliser ce fichier si vous avez déjà un MongoDB externe.
-  # Mettez à jour DB_HOST (ou MONGODB_URI) dans votre .env.
+services:
 
   server:
     container_name: psdk_online_server
@@ -13,9 +14,8 @@ services:
     environment:
       - NODE_ENV=${NODE_ENV:-production}
       - PORT=${PORT:-3000}
-      # MongoDB — variables séparées ou URI complète
-      - MONGODB_URI=${MONGODB_URI:-}
-      - DB_NAME=${DB_NAME:-}
+      # MongoDB connection — assembled from individual variables in src/config/env.ts
+      - DB_NAME=${DB_NAME:-psdk_online}
       - DB_HOST=${DB_HOST:-localhost}
       - DB_PORT=${DB_PORT:-27017}
       - DB_USER=${DB_USER:-}

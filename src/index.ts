@@ -62,26 +62,38 @@ async function bootstrap(): Promise<void> {
   registerBankRoutes(router);
   registerTelemetryRoutes(router);
 
-  // ── Native HTTP server ────────────────────────────────
+  // ── Native THTP server ────────────────────────────────
   const server = http.createServer((req, res) => {
-    const method   = req.method || 'GET';
+    const method = req.method || 'GET';
     const pathname = (req.url || '/').split('?')[0];
-    const start    = Date.now();
+    const start = Date.now();
 
     // Helper: log + send for routes handled before the router middleware
     const earlyRespond = (status: number, send: () => void) => {
       send();
-      const ms          = Date.now() - start;
-      const statusColor = status >= 500 ? '\x1b[31m'
-                        : status >= 400 ? '\x1b[33m'
-                        : status >= 300 ? '\x1b[36m'
-                        :                 '\x1b[32m';
-      console.debug('HTTP', `${method} ${pathname} ${statusColor}${status}\x1b[0m — ${ms}ms`);
+      const ms = Date.now() - start;
+      const statusColor =
+        status >= 500
+          ? '\x1b[31m'
+          : status >= 400
+            ? '\x1b[33m'
+            : status >= 300
+              ? '\x1b[36m'
+              : '\x1b[32m';
+      console.debug(
+        'HTTP',
+        `${method} ${pathname} ${statusColor}${status}\x1b[0m — ${ms}ms`,
+      );
     };
 
     // Public health check (no API Key)
     if (pathname === '/health' && method === 'GET') {
-      earlyRespond(200, () => sendJson(res, 200, { status: 'ok', uptime: Math.floor(process.uptime()) }));
+      earlyRespond(200, () =>
+        sendJson(res, 200, {
+          status: 'ok',
+          uptime: Math.floor(process.uptime()),
+        }),
+      );
       return;
     }
 
@@ -98,7 +110,9 @@ async function bootstrap(): Promise<void> {
     if (pathname === '/api-docs/openapi.json' && method === 'GET') {
       earlyRespond(200, () => {
         const body = JSON.stringify(openApiSpec, null, 2);
-        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.writeHead(200, {
+          'Content-Type': 'application/json; charset=utf-8',
+        });
         res.end(body);
       });
       return;
@@ -106,7 +120,10 @@ async function bootstrap(): Promise<void> {
 
     // Silence favicon requests — but still log them
     if (pathname === '/favicon.ico') {
-      earlyRespond(204, () => { res.writeHead(204); res.end(); });
+      earlyRespond(204, () => {
+        res.writeHead(204);
+        res.end();
+      });
       return;
     }
 

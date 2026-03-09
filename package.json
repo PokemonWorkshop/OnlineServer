@@ -7,7 +7,10 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "docs": "echo 'Swagger UI available at http://localhost:3000/api-docs when server is running'"
+    "docs": "echo 'Swagger UI available at http://localhost:3000/api-docs when server is running'",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "mongoose": "^9.2.3",
@@ -19,6 +22,8 @@
     "@types/ws": "^8.5.10",
     "@types/node": "^25.3.4",
     "typescript": "^5.3.3",
-    "tsx": "^4.6.2"
+    "tsx": "^4.6.2",
+    "vitest": "^4.0.17",
+    "@vitest/coverage-v8": "^4.0.17"
   }
 }
