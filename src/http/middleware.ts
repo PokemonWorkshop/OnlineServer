@@ -74,10 +74,10 @@ export async function apiKeyMiddleware(
  *
  * @example
  * ```ts
- * router.get('/api/v1/bank/boxes', async (req, res) => {
+ * router.get('/api/v1/gts/deposit', async (req, res) => {
  *   if (!extractPlayer(req, res)) return;
- *   const boxes = await bankService.getBoxes(req.playerId!);
- *   sendJson(res, 200, boxes);
+ *   const deposit = await gtsService.getMyDeposit(req.playerId!);
+ *   sendJson(res, 200, deposit ?? null);
  * });
  * ```
  */

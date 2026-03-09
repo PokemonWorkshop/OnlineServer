@@ -80,15 +80,4 @@ export const ENV = {
    */
   GTS_EXPIRY_DAYS: parseInt(process.env.GTS_EXPIRY_DAYS || '30'),
 
-  /**
-   * Maximum number of PokéBank boxes per player.
-   * Box indexes run from `0` to `POKEBANK_MAX_BOXES - 1`. Defaults to `8`.
-   */
-  POKEBANK_MAX_BOXES: parseInt(process.env.POKEBANK_MAX_BOXES || '8'),
-
-  /**
-   * Number of slots per PokéBank box.
-   * Slot indexes run from `0` to `POKEBANK_BOX_SIZE - 1`. Defaults to `30`.
-   */
-  POKEBANK_BOX_SIZE: parseInt(process.env.POKEBANK_BOX_SIZE || '30'),
 } as const;

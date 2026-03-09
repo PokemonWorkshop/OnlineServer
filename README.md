@@ -24,7 +24,7 @@ A lightweight, dependency-minimal backend designed to provide online features fo
 
 ## Purpose
 
-This server acts as the online backend for a PSDK game project. It handles everything that requires a persistent, shared state between players: account registration, real-time battles, creature trading, the Global Trade System (GTS), a cloud bank for creature storage, a Mystery Gift distribution system, and a friend list with online presence detection.
+This server acts as the online backend for a PSDK game project. It handles everything that requires a persistent, shared state between players: account registration, real-time battles, creature trading, the Global Trade System (GTS), a Mystery Gift distribution system, and a friend list with online presence detection.
 
 The codebase deliberately avoids heavy frameworks. The HTTP router, middleware chain, and WebSocket dispatcher are all written from scratch on top of Node.js built-ins. This keeps the binary small, the startup time fast, and the deployment straightforward.
 
@@ -56,7 +56,7 @@ The project is split into three clearly separated concerns:
 
 **Service layer** (`services/`): Contains all business rules. Services are plain classes with no framework coupling. They interact with Mongoose models and return structured result objects (`{ ok: boolean, error?: string }`).
 
-**Data layer** (`models/`): Mongoose schemas with indexes defined where needed. All TTL-based expiry (GTS deposits) is handled at the MongoDB level.
+**Data layer** (`models/`): Mongoose schemas with indexes defined where needed. All TTL-based expiry (GTS deposits and pending results) is handled at the MongoDB level.
 
 ---
 
@@ -74,8 +74,7 @@ Players are identified by an 8-digit friend code. The list endpoint returns each
 **Global Trade System (GTS)**
 Players deposit a creature along with a wanted species. Other players can search deposits by species, level, and gender, then execute a trade that atomically swaps ownership. Deposits expire automatically after a configurable number of days via a MongoDB TTL index. A species blacklist prevents specific creatures from entering the GTS.
 
-**PokeBank**
-Cloud storage for creatures. Each player gets a configurable number of boxes, each with a configurable number of slots. Deposit and withdraw operations are atomic at the slot level.
+When a trade executes while the original depositor is offline, the received creature is stored as a **pending result** (`GtsPendingResult`). The depositor can list their pending results at any time and claim each one individually, guaranteeing they never lose a traded creature.
 
 **Mystery Gift**
 Gifts can be of type `internet` (visible to all players, optionally capped by claim count) or `code` (redeemed with a secret code). Players can claim each gift once. Gifts can carry items, creatures, or eggs. The admin API supports creating, deactivating, and purging expired gifts.
@@ -105,19 +104,17 @@ An in-process metrics store tracks request counts, error rates, WebSocket connec
 │   │   ├── doc.ts
 │   │   └── routes/
 │   │       ├── auth.routes.ts
-│   │       ├── bank.routes.ts
 │   │       ├── friends.routes.ts
 │   │       ├── gts.routes.ts
 │   │       ├── mysteryGift.routes.ts
 │   │       └── telemetry.routes.ts
 │   ├── models/
-│   │   ├── BankBox.ts
 │   │   ├── GtsDeposit.ts
+│   │   ├── GtsPendingResult.ts
 │   │   ├── MysteryGift.ts
 │   │   ├── Player.ts
 │   │   └── TelemetrySnapshot.ts
 │   ├── services/
-│   │   ├── BankService.ts
 │   │   ├── FriendService.ts
 │   │   ├── GtsService.ts
 │   │   └── MysteryGiftService.ts
@@ -250,7 +247,7 @@ x-player-id: <unique player identifier>
 WebSocket connections authenticate via query parameters on connect:
 
 ```
-ws://host:port?apiKey=<API_KEY>&playerId=<id>&trainerName=<name>
+ws://host:port?apiKey=<API_KEY>&playerId=<id>&trainerName=<n>
 ```
 
 WebSocket close codes: `4001` invalid API key, `4002` missing player ID, `4003` session replaced by a newer connection from the same player.
@@ -276,21 +273,15 @@ WebSocket close codes: `4001` invalid API key, `4002` missing player ID, `4003` 
 
 **GTS** — all require `x-player-id`
 
-| Method | Path                           | Description                                          |
-| ------ | ------------------------------ | ---------------------------------------------------- |
-| GET    | `/api/v1/gts/deposit`          | Get own active deposit                               |
-| POST   | `/api/v1/gts/deposit`          | Deposit a creature                                   |
-| GET    | `/api/v1/gts/search`           | Search deposits (`?speciesId=&level=&gender=&page=`) |
-| POST   | `/api/v1/gts/trade/:depositId` | Execute a trade                                      |
-| DELETE | `/api/v1/gts/deposit`          | Withdraw own deposit                                 |
-
-**PokeBank** — all require `x-player-id`
-
-| Method | Path                    | Description                     |
-| ------ | ----------------------- | ------------------------------- |
-| GET    | `/api/v1/bank/boxes`    | Get all boxes                   |
-| POST   | `/api/v1/bank/deposit`  | Deposit a creature into a slot  |
-| POST   | `/api/v1/bank/withdraw` | Withdraw a creature from a slot |
+| Method | Path                                          | Description                                                          |
+| ------ | --------------------------------------------- | -------------------------------------------------------------------- |
+| GET    | `/api/v1/gts/deposit`                         | Get own active deposit                                               |
+| POST   | `/api/v1/gts/deposit`                         | Deposit a creature                                                   |
+| GET    | `/api/v1/gts/search`                          | Search deposits (`?speciesId=&level=&gender=&page=`)                 |
+| POST   | `/api/v1/gts/trade/:depositId`                | Execute a trade                                                      |
+| DELETE | `/api/v1/gts/deposit`                         | Withdraw own deposit                                                 |
+| GET    | `/api/v1/gts/pending`                         | List creatures received while offline                                |
+| POST   | `/api/v1/gts/pending/claim/:pendingResultId`  | Claim a pending result (retrieve the received creature)              |
 
 **Mystery Gift** — player routes require `x-player-id`, admin routes require `x-admin-key`
 
@@ -372,12 +363,6 @@ npm run test:watch
 npm run test:coverage
 ```
 
-Results: 204 tests across 13 suites, approximately 265ms total execution time.
-
-Coverage on tested files: router 99%, middleware 100%, all route handlers 80-100%, BankService 100%, FriendService 100%, battleHandler 100%, tradeHandler 100%, BaseRoom 100%, WsServer 96%.
-
-Files intentionally not unit-tested (`database.ts`, `index.ts`, `GtsService`, `MysteryGiftService`, Mongoose models) require a live MongoDB connection and are covered by integration testing against a real deployment.
-
 ---
 
 ## Environment Variables Reference
@@ -393,9 +378,7 @@ Files intentionally not unit-tested (`database.ts`, `index.ts`, `GtsService`, `M
 | `DB_PSWD`                    | No          | _(empty)_     | MongoDB password                                                   |
 | `API_KEY`                    | Yes         | _(none)_      | Shared key required on every client request                        |
 | `ADMIN_KEY`                  | Yes         | _(none)_      | Separate key for admin and telemetry endpoints                     |
-| `GTS_SPECIES_BLACKLIST`      | No          | _(empty)_     | Comma-separated species IDs blocked from the GTS (e.g. `150,151`)  |
-| `GTS_EXPIRY_DAYS`            | No          | `30`          | Days before a GTS deposit expires and is deleted                   |
-| `POKEBANK_MAX_BOXES`         | No          | `8`           | Maximum number of bank boxes per player                            |
-| `POKEBANK_BOX_SIZE`          | No          | `30`          | Number of slots per bank box                                       |
+| `GTS_SPECIES_BLACKLIST`      | No          | _(empty)_     | Comma-separated species IDs blocked from the GTS (e.g. `150,151`) |
+| `GTS_EXPIRY_DAYS`            | No          | `30`          | Days before a GTS deposit (or pending result) expires              |
 | `MONGO_INITDB_ROOT_USERNAME` | Docker only | _(none)_      | MongoDB root admin username, created on first container start      |
 | `MONGO_INITDB_ROOT_PASSWORD` | Docker only | _(none)_      | MongoDB root admin password                                        |

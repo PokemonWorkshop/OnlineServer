@@ -29,17 +29,11 @@ export function registerGtsRoutes(router: Router): void {
     }
 
     if (!body.creature || !body.wanted?.speciesId) {
-      sendJson(res, 400, {
-        error: 'creature and wanted.speciesId are required',
-      });
+      sendJson(res, 400, { error: 'creature and wanted.speciesId are required' });
       return;
     }
 
-    const result = await gtsService.deposit(
-      req.playerId!,
-      body.creature,
-      body.wanted,
-    );
+    const result = await gtsService.deposit(req.playerId!, body.creature, body.wanted);
     sendJson(res, result.ok ? 201 : 400, result);
   });
 
@@ -49,16 +43,14 @@ export function registerGtsRoutes(router: Router): void {
    */
   router.get('/api/v1/gts/search', async (req, res) => {
     if (!extractPlayer(req, res)) return;
-    const q = getQuery(req);
+    const q         = getQuery(req);
     const speciesId = q.get('speciesId');
-    const level = parseInt(q.get('level') || '0');
-    const gender = parseInt(q.get('gender') || '0');
-    const page = parseInt(q.get('page') || '0');
+    const level     = parseInt(q.get('level') || '0');
+    const gender    = parseInt(q.get('gender') || '0');
+    const page      = parseInt(q.get('page') || '0');
 
     if (!speciesId || !level || !gender) {
-      sendJson(res, 400, {
-        error: 'Required parameters: speciesId, level, gender',
-      });
+      sendJson(res, 400, { error: 'Required parameters: speciesId, level, gender' });
       return;
     }
 
@@ -70,6 +62,9 @@ export function registerGtsRoutes(router: Router): void {
    * POST /api/v1/gts/trade/:depositId
    * Trades your creature for an existing GTS deposit.
    * Body: { offeredCreature: object }
+   *
+   * On success the depositor's received creature is stored as a GtsPendingResult
+   * so they can claim it even if they were offline at trade time.
    */
   router.post('/api/v1/gts/trade/:depositId', async (req, res, params) => {
     if (!extractPlayer(req, res)) return;
@@ -86,11 +81,7 @@ export function registerGtsRoutes(router: Router): void {
       return;
     }
 
-    const result = await gtsService.trade(
-      req.playerId!,
-      params.depositId,
-      body.offeredCreature,
-    );
+    const result = await gtsService.trade(req.playerId!, params.depositId, body.offeredCreature);
     sendJson(res, result.ok ? 200 : 400, result);
   });
 
@@ -101,6 +92,30 @@ export function registerGtsRoutes(router: Router): void {
   router.delete('/api/v1/gts/deposit', async (req, res) => {
     if (!extractPlayer(req, res)) return;
     const result = await gtsService.withdraw(req.playerId!);
+    sendJson(res, result.ok ? 200 : 404, result);
+  });
+
+  /**
+   * GET /api/v1/gts/pending
+   * Returns all pending trade results (creatures received while offline).
+   */
+  router.get('/api/v1/gts/pending', async (req, res) => {
+    if (!extractPlayer(req, res)) return;
+    const results = await gtsService.getPendingResults(req.playerId!);
+    sendJson(res, 200, results);
+  });
+
+  /**
+   * POST /api/v1/gts/pending/claim/:pendingResultId
+   * Claims (removes and returns) a specific pending trade result.
+   * Body: (empty)
+   */
+  router.post('/api/v1/gts/pending/claim/:pendingResultId', async (req, res, params) => {
+    if (!extractPlayer(req, res)) return;
+    const result = await gtsService.claimPendingResult(
+      req.playerId!,
+      params.pendingResultId,
+    );
     sendJson(res, result.ok ? 200 : 404, result);
   });
 }

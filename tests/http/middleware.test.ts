@@ -42,7 +42,7 @@ function makeRes() {
 
 describe('apiKeyMiddleware', () => {
   it('allows requests with the correct x-api-key', async () => {
-    const req = makeReq('/api/v1/bank/boxes', { 'x-api-key': 'test-api-key' });
+    const req = makeReq('/api/v1/gts/deposit', { 'x-api-key': 'test-api-key' });
     const res = makeRes();
     const result = await apiKeyMiddleware(req, res);
     expect(result).toBe(true);
@@ -50,7 +50,7 @@ describe('apiKeyMiddleware', () => {
   });
 
   it('rejects requests with a wrong x-api-key (401)', async () => {
-    const req = makeReq('/api/v1/bank/boxes', { 'x-api-key': 'wrong-key' });
+    const req = makeReq('/api/v1/gts/deposit', { 'x-api-key': 'wrong-key' });
     const res = makeRes();
     const result = await apiKeyMiddleware(req, res);
     expect(result).toBe(false);
@@ -58,7 +58,7 @@ describe('apiKeyMiddleware', () => {
   });
 
   it('rejects requests with no api key (401)', async () => {
-    const req = makeReq('/api/v1/bank/boxes', {});
+    const req = makeReq('/api/v1/gts/deposit', {});
     const res = makeRes();
     const result = await apiKeyMiddleware(req, res);
     expect(result).toBe(false);
@@ -104,7 +104,7 @@ describe('apiKeyMiddleware', () => {
 
 describe('extractPlayer', () => {
   it('extracts x-player-id and attaches it to req.playerId', () => {
-    const req = makeReq('/api/v1/bank/boxes', { 'x-player-id': 'player123' });
+    const req = makeReq('/api/v1/gts/deposit', { 'x-player-id': 'player123' });
     const res = makeRes();
     const result = extractPlayer(req, res);
     expect(result).toBe(true);

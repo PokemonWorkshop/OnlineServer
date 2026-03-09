@@ -11,7 +11,6 @@ import { registerAuthRoutes } from './http/routes/auth.routes';
 import { registerGtsRoutes } from './http/routes/gts.routes';
 import { registerMysteryGiftRoutes } from './http/routes/mysteryGift.routes';
 import { registerFriendRoutes } from './http/routes/friends.routes';
-import { registerBankRoutes } from './http/routes/bank.routes';
 import { registerTelemetryRoutes } from './http/routes/telemetry.routes';
 import { openApiSpec, swaggerUiHtml } from './swagger';
 import { createWsServer } from './ws/WsServer';
@@ -59,7 +58,6 @@ async function bootstrap(): Promise<void> {
   registerGtsRoutes(router);
   registerMysteryGiftRoutes(router);
   registerFriendRoutes(router);
-  registerBankRoutes(router);
   registerTelemetryRoutes(router);
 
   // ── Native THTP server ────────────────────────────────

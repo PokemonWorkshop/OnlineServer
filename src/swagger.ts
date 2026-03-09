@@ -12,7 +12,7 @@ export const openApiSpec = {
     version: '1.0.0',
     description: `
 ## Overview
-HTTP & WebSocket server for **PSDK Online** — handles player authentication, PokéBank storage,
+HTTP & WebSocket server for **PSDK Online** — handles player authentication,
 friend management, GTS (Global Trade System), Mystery Gifts, and server telemetry.
 
 ## Authentication
@@ -29,8 +29,6 @@ It does not validate or transform PSDK creature fields — that responsibility l
 ## Server limits (configurable via environment variables)
 | Variable | Default | Description |
 |---|---|---|
-| \`POKEBANK_MAX_BOXES\` | 8 | Max boxes per player (indexes 0 → N-1) |
-| \`POKEBANK_BOX_SIZE\` | 30 | Slots per box (indexes 0 → N-1) |
 | \`GTS_EXPIRY_DAYS\` | 30 | Days before a GTS deposit auto-expires (MongoDB TTL) |
 | \`GTS_SPECIES_BLACKLIST\` | _(empty)_ | Comma-separated species IDs banned from GTS |
 
@@ -154,100 +152,6 @@ See the **WebSocket** tag below for all message types and payloads.
             description:
               '`true` if the trainer name was changed on this login.',
           },
-        },
-      },
-
-      // ── Bank ─────────────────────────────────────────────────────────────
-      BankSlot: {
-        type: 'object',
-        required: ['slotIndex', 'creature'],
-        properties: {
-          slotIndex: {
-            type: 'integer',
-            minimum: 0,
-            description:
-              'Zero-based slot position within the box (0 → POKEBANK_BOX_SIZE-1, default max 29).',
-            example: 3,
-          },
-          creature: {
-            type: 'object',
-            additionalProperties: true,
-            description:
-              'Serialised PSDK creature data. The server stores this as-is without any transformation.',
-          },
-        },
-      },
-      BankBox: {
-        type: 'object',
-        required: ['_id', 'playerId', 'boxIndex', 'slots'],
-        properties: {
-          _id: {
-            type: 'string',
-            description: 'MongoDB ObjectId.',
-            example: '64f1a2b3c4d5e6f7a8b9c0d1',
-          },
-          playerId: { type: 'string', description: "Owner's player ID." },
-          boxIndex: {
-            type: 'integer',
-            minimum: 0,
-            description:
-              'Zero-based box index (0 → POKEBANK_MAX_BOXES-1, default max 7).',
-            example: 0,
-          },
-          slots: {
-            type: 'array',
-            items: { $ref: '#/components/schemas/BankSlot' },
-            description:
-              'Only **occupied** slots are listed — missing slot indexes are implicitly empty.',
-          },
-          createdAt: { type: 'string', format: 'date-time' },
-          updatedAt: { type: 'string', format: 'date-time' },
-        },
-      },
-      BankDepositBody: {
-        type: 'object',
-        required: ['boxIndex', 'slotIndex', 'creature'],
-        properties: {
-          boxIndex: {
-            type: 'integer',
-            minimum: 0,
-            description:
-              'Target box index. Must be within `[0, POKEBANK_MAX_BOXES)`.',
-            example: 0,
-          },
-          slotIndex: {
-            type: 'integer',
-            minimum: 0,
-            description:
-              'Target slot. Must be within `[0, POKEBANK_BOX_SIZE)` and **empty**.',
-            example: 3,
-          },
-          creature: {
-            type: 'object',
-            additionalProperties: true,
-            description: 'Serialised PSDK creature to store.',
-          },
-        },
-      },
-      BankWithdrawBody: {
-        type: 'object',
-        required: ['boxIndex', 'slotIndex'],
-        properties: {
-          boxIndex: { type: 'integer', minimum: 0, example: 0 },
-          slotIndex: { type: 'integer', minimum: 0, example: 3 },
-        },
-      },
-      BankWithdrawResponse: {
-        type: 'object',
-        required: ['ok'],
-        properties: {
-          ok: { type: 'boolean' },
-          creature: {
-            type: 'object',
-            additionalProperties: true,
-            description: 'The withdrawn creature. Present only on success.',
-          },
-          error: { type: 'string', description: 'Present only on failure.' },
         },
       },
 
@@ -447,6 +351,44 @@ See the **WebSocket** tag below for all message types and payloads.
             description: 'Your withdrawn creature. Present only on success.',
           },
           error: { type: 'string' },
+        },
+      },
+      GtsPendingResult: {
+        type: 'object',
+        description:
+          'A trade result waiting to be claimed by the original depositor. ' +
+          'Created when a trader executes a GTS trade while the depositor is offline.',
+        properties: {
+          _id: {
+            type: 'string',
+            description: 'MongoDB ObjectId — use as `pendingResultId` when calling `POST /api/v1/gts/pending/claim/:pendingResultId`.',
+            example: '64f1a2b3c4d5e6f7a8b9c0d2',
+          },
+          recipientId: { type: 'string', description: 'Player ID of the original depositor.' },
+          receivedCreature: {
+            type: 'object',
+            additionalProperties: true,
+            description: 'The creature sent by the trader.',
+          },
+          traderName: { type: 'string', description: 'Display name of the trader.', example: 'Gary' },
+          expiresAt: {
+            type: 'string',
+            format: 'date-time',
+            description: 'Auto-deleted by MongoDB TTL after this date (GTS_EXPIRY_DAYS from trade time).',
+          },
+          createdAt: { type: 'string', format: 'date-time' },
+        },
+      },
+      GtsPendingClaimResponse: {
+        type: 'object',
+        properties: {
+          ok: { type: 'boolean' },
+          creature: {
+            type: 'object',
+            additionalProperties: true,
+            description: 'The claimed creature. Present only on success.',
+          },
+          error: { type: 'string', description: 'Present only on failure.' },
         },
       },
 
@@ -762,13 +704,7 @@ See the **WebSocket** tag below for all message types and payloads.
   tags: [
     { name: 'System', description: 'Health check and API metadata.' },
     { name: 'Auth', description: 'Player registration and login.' },
-    {
-      name: 'Bank',
-      description:
-        'PokéBank — per-player creature cloud storage (boxes & slots).',
-    },
-    {
-      name: 'Friends',
+    { name: 'Friends',
       description:
         'Friend list, online presence, heartbeat, and friend requests.',
     },
@@ -868,24 +804,41 @@ See the **WebSocket** tag below for all message types and payloads.
       },
     },
 
-    // ── Bank ────────────────────────────────────────────────────────────────
-    '/api/v1/bank/boxes': {
+    // ── GTS pending results ──────────────────────────────────────────────────
+    '/api/v1/gts/pending': {
       get: {
-        tags: ['Bank'],
-        summary: "List the player's PokéBank boxes",
+        tags: ['GTS'],
+        summary: 'Get pending trade results (creatures received while offline)',
         description:
-          'Returns all box documents for the player. Only **occupied** slots are listed inside each box — ' +
-          'missing slot indexes are implicitly empty.\n\n' +
-          'Returns an empty array `[]` if the player has no boxes yet.',
+          'Returns creatures that were sent to the player by a trader while they were offline.\n\n' +
+          'A pending result is created automatically when another player executes a trade ' +
+          'against the player\'s GTS deposit. The depositor can preview their received ' +
+          'creatures here and claim them one-by-one via `POST /api/v1/gts/pending/claim/:pendingResultId`.\n\n' +
+          'Pending results share the same TTL as deposits (`GTS_EXPIRY_DAYS` days).',
         security: [{ ApiKey: [], PlayerId: [] }],
         responses: {
           200: {
-            description: 'Array of bank boxes (may be empty).',
+            description: 'Array of pending results (may be empty).',
             content: {
               'application/json': {
                 schema: {
                   type: 'array',
-                  items: { $ref: '#/components/schemas/BankBox' },
+                  items: { $ref: '#/components/schemas/GtsPendingResult' },
+                },
+                examples: {
+                  hasPending: {
+                    summary: 'Has pending results',
+                    value: [
+                      {
+                        _id: '64f1a2b3c4d5e6f7a8b9c0d2',
+                        recipientId: 'player-123',
+                        receivedCreature: { speciesId: 'blastoise', level: 36 },
+                        traderName: 'Gary',
+                        expiresAt: '2026-04-06T00:00:00.000Z',
+                      },
+                    ],
+                  },
+                  empty: { summary: 'No pending results', value: [] },
                 },
               },
             },
@@ -895,121 +848,51 @@ See the **WebSocket** tag below for all message types and payloads.
         },
       },
     },
-    '/api/v1/bank/deposit': {
+    '/api/v1/gts/pending/claim/{pendingResultId}': {
       post: {
-        tags: ['Bank'],
-        summary: 'Deposit a creature into a box slot',
+        tags: ['GTS'],
+        summary: 'Claim a pending trade result',
         description:
-          'Stores a creature into the specified box/slot pair.\n\n' +
-          '- If the box does not exist yet, it is **created automatically**.\n' +
-          '- Fails if the target slot is **already occupied**.\n' +
-          '- `boxIndex` must be in `[0, POKEBANK_MAX_BOXES)` (default 0–7).\n' +
-          '- `slotIndex` must be in `[0, POKEBANK_BOX_SIZE)` (default 0–29).',
+          'Atomically removes the pending result and returns the received creature.\n\n' +
+          'Use the `_id` from `GET /api/v1/gts/pending` as `pendingResultId`.\n\n' +
+          'The operation fails safely if the result does not exist or belongs to a different player.',
         security: [{ ApiKey: [], PlayerId: [] }],
-        requestBody: {
-          required: true,
-          content: {
-            'application/json': {
-              schema: { $ref: '#/components/schemas/BankDepositBody' },
-            },
+        parameters: [
+          {
+            name: 'pendingResultId',
+            in: 'path',
+            required: true,
+            schema: { type: 'string' },
+            description: 'MongoDB `_id` of the pending result to claim.',
+            example: '64f1a2b3c4d5e6f7a8b9c0d2',
           },
-        },
+        ],
         responses: {
           200: {
-            description: 'Deposit succeeded.',
+            description: 'Claimed successfully — creature returned.',
             content: {
               'application/json': {
-                schema: { $ref: '#/components/schemas/OkResult' },
-                examples: {
-                  success: { value: { ok: true } },
-                },
-              },
-            },
-          },
-          400: {
-            description: 'Validation or business error.',
-            content: {
-              'application/json': {
-                schema: { $ref: '#/components/schemas/OkResult' },
-                examples: {
-                  slotOccupied: {
-                    summary: 'Slot already occupied',
-                    value: {
-                      ok: false,
-                      error: 'This slot is already occupied',
-                    },
-                  },
-                  invalidBoxIndex: {
-                    summary: 'boxIndex out of range',
-                    value: { ok: false, error: 'Invalid box index (0 to 7)' },
-                  },
-                  invalidSlotIndex: {
-                    summary: 'slotIndex out of range',
-                    value: { ok: false, error: 'Invalid slot index (0 to 29)' },
-                  },
-                  missingFields: {
-                    summary: 'Missing body fields',
-                    value: {
-                      error: 'boxIndex, slotIndex and creature are required',
-                    },
-                  },
-                },
-              },
-            },
-          },
-          401: { $ref: '#/components/responses/Unauthorized' },
-        },
-      },
-    },
-    '/api/v1/bank/withdraw': {
-      post: {
-        tags: ['Bank'],
-        summary: 'Withdraw a creature from a box slot',
-        description:
-          'Removes the creature from the specified slot and returns it.\n\n' +
-          'The slot is emptied atomically via MongoDB `$pull`. Fails if the box or slot does not exist.',
-        security: [{ ApiKey: [], PlayerId: [] }],
-        requestBody: {
-          required: true,
-          content: {
-            'application/json': {
-              schema: { $ref: '#/components/schemas/BankWithdrawBody' },
-            },
-          },
-        },
-        responses: {
-          200: {
-            description: 'Withdrawal succeeded — the creature is returned.',
-            content: {
-              'application/json': {
-                schema: { $ref: '#/components/schemas/BankWithdrawResponse' },
+                schema: { $ref: '#/components/schemas/GtsPendingClaimResponse' },
                 example: {
                   ok: true,
-                  creature: { speciesId: 'pikachu', level: 25 },
-                },
-              },
-            },
-          },
-          400: {
-            description: 'Box/slot not found or missing `x-player-id`.',
-            content: {
-              'application/json': {
-                schema: { $ref: '#/components/schemas/BankWithdrawResponse' },
-                examples: {
-                  emptyBox: {
-                    value: {
-                      ok: false,
-                      error: 'Box is empty or does not exist',
-                    },
-                  },
-                  emptySlot: {
-                    value: { ok: false, error: 'This slot is empty' },
-                  },
+                  creature: { speciesId: 'blastoise', level: 36 },
                 },
               },
             },
           },
           401: { $ref: '#/components/responses/Unauthorized' },
+          404: {
+            description: 'Pending result not found or belongs to another player.',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/GtsPendingClaimResponse' },
+                example: {
+                  ok: false,
+                  error: 'Pending result not found or does not belong to you',
+                },
+              },
+            },
+          },
         },
       },
     },
