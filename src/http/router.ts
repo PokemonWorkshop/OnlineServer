@@ -103,6 +103,13 @@ export class Router {
   delete(path: string, handler: Handler): void { this.add('DELETE', path, handler); }
 
   /**
+   * Registers a `PATCH` route.
+   * @param path    - Express-style path with optional `:param` segments.
+   * @param handler - Async handler function.
+   */
+  patch(path: string, handler: Handler): void  { this.add('PATCH',  path, handler); }
+
+  /**
    * Dispatches an incoming request through middlewares then the matching route.
    *
    * @remarks

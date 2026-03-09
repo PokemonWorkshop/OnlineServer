@@ -130,6 +130,16 @@ See the **WebSocket** tag below for all message types and payloads.
             description: 'Cosmetic display name. May change on every login.',
             example: 'Ash',
           },
+          isFemale: {
+            type: 'boolean',
+            description: 'Whether the trainer is female. Defaults to `false` (male) if omitted.',
+            example: false,
+          },
+          spriteId: {
+            type: 'string',
+            description: 'Sprite identifier used to render the trainer overworld character. Defaults to an empty string if omitted.',
+            example: 'trainer_ash',
+          },
         },
       },
       RegisterResponse: {
@@ -144,18 +154,65 @@ See the **WebSocket** tag below for all message types and payloads.
           trainerName: { type: 'string', example: 'Ash' },
           alreadyRegistered: {
             type: 'boolean',
-            description:
-              '`true` if the player already existed in the database.',
+            description: '`true` if the player already existed in the database.',
           },
           nameUpdated: {
             type: 'boolean',
-            description:
-              '`true` if the trainer name was changed on this login.',
+            description: '`true` if the trainer name was changed on this login.',
           },
         },
       },
+      UpdateProfileBody: {
+        type: 'object',
+        description: 'All fields are optional — at least one must be provided.',
+        properties: {
+          trainerName: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 16,
+            description: 'New display name.',
+            example: 'Gary',
+          },
+          isFemale: {
+            type: 'boolean',
+            description: 'Whether the trainer is female.',
+            example: true,
+          },
+          spriteId: {
+            type: 'string',
+            description: 'New sprite identifier.',
+            example: 'trainer_gary',
+          },
+          profileMessage: {
+            type: 'string',
+            maxLength: 256,
+            description: 'Message displayed on the player\'s public profile.',
+            example: 'Looking for rare trades!',
+          },
+        },
+      },
+      UpdateProfileResponse: {
+        type: 'object',
+        properties: {
+          trainerName:    { type: 'string', example: 'Gary' },
+          isFemale:       { type: 'boolean', example: true },
+          spriteId:       { type: 'string', example: 'trainer_gary' },
+          profileMessage: { type: 'string', example: 'Looking for rare trades!' },
+        },
+      },
 
-      // ── Friends ───────────────────────────────────────────────────────────
+      DeleteProfileBody: {
+        type: 'object',
+        required: ['confirm'],
+        properties: {
+          confirm: {
+            type: 'boolean',
+            enum: [true],
+            description: 'Must be `true` to confirm permanent account deletion.',
+            example: true,
+          },
+        },
+      },
       FriendEntry: {
         type: 'object',
         properties: {
@@ -800,6 +857,84 @@ See the **WebSocket** tag below for all message types and payloads.
           },
           400: { $ref: '#/components/responses/ValidationError' },
           401: { $ref: '#/components/responses/Unauthorized' },
+        },
+      },
+    },
+
+    '/api/v1/auth/profile': {
+      patch: {
+        tags: ['Auth'],
+        summary: 'Update player profile',
+        description:
+          'Update one or more profile fields for the authenticated player. All fields are optional — at least one must be provided. Also refreshes `lastSeen` and `expiresAt`.',
+        security: [{ ApiKey: [], PlayerId: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/UpdateProfileBody' },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description: 'Profile updated successfully.',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/UpdateProfileResponse' },
+              },
+            },
+          },
+          400: { $ref: '#/components/responses/ValidationError' },
+          401: { $ref: '#/components/responses/Unauthorized' },
+          404: {
+            description: 'Player not found.',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/Error' },
+              },
+            },
+          },
+        },
+      },
+      delete: {
+        tags: ['Auth'],
+        summary: 'Delete player account',
+        description:
+          'Permanently deletes the authenticated player\'s account and cascades cleanup:\n\n' +
+          '- Removes the player from every other player\'s `friends` list\n' +
+          '- Removes the player from every other player\'s `pendingRequests` list\n' +
+          '- Deletes the player\'s active GTS deposit\n' +
+          '- Deletes any `GtsPendingResult` documents addressed to the player\n\n' +
+          '**This action is irreversible.** The body must contain `{ "confirm": true }`.',
+        security: [{ ApiKey: [], PlayerId: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/DeleteProfileBody' },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description: 'Account deleted successfully.',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/OkResult' },
+              },
+            },
+          },
+          400: { $ref: '#/components/responses/ValidationError' },
+          401: { $ref: '#/components/responses/Unauthorized' },
+          404: {
+            description: 'Player not found.',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/Error' },
+              },
+            },
+          },
         },
       },
     },

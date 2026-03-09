@@ -256,9 +256,11 @@ WebSocket close codes: `4001` invalid API key, `4002` missing player ID, `4003` 
 
 **Auth**
 
-| Method | Path                    | Auth    | Description                                       |
-| ------ | ----------------------- | ------- | ------------------------------------------------- |
-| POST   | `/api/v1/auth/register` | API key | Register or update a player. Returns friend code. |
+| Method | Path                    | Auth             | Description                                                                                                             |
+| ------ | ----------------------- | ---------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| POST   | `/api/v1/auth/register` | API key          | Register or update a player. Returns friend code.                                                                       |
+| PATCH  | `/api/v1/auth/profile`  | API key + player | Update profile fields (`trainerName`, `isFemale`, `spriteId`, `profileMessage`). At least one field required.           |
+| DELETE | `/api/v1/auth/profile`  | API key + player | Permanently delete the authenticated player's account and cascade-clean all associated data. Body: `{ confirm: true }`. |
 
 **Friends** — all require `x-player-id`
 
@@ -273,15 +275,15 @@ WebSocket close codes: `4001` invalid API key, `4002` missing player ID, `4003` 
 
 **GTS** — all require `x-player-id`
 
-| Method | Path                                          | Description                                                          |
-| ------ | --------------------------------------------- | -------------------------------------------------------------------- |
-| GET    | `/api/v1/gts/deposit`                         | Get own active deposit                                               |
-| POST   | `/api/v1/gts/deposit`                         | Deposit a creature                                                   |
-| GET    | `/api/v1/gts/search`                          | Search deposits (`?speciesId=&level=&gender=&page=`)                 |
-| POST   | `/api/v1/gts/trade/:depositId`                | Execute a trade                                                      |
-| DELETE | `/api/v1/gts/deposit`                         | Withdraw own deposit                                                 |
-| GET    | `/api/v1/gts/pending`                         | List creatures received while offline                                |
-| POST   | `/api/v1/gts/pending/claim/:pendingResultId`  | Claim a pending result (retrieve the received creature)              |
+| Method | Path                                         | Description                                             |
+| ------ | -------------------------------------------- | ------------------------------------------------------- |
+| GET    | `/api/v1/gts/deposit`                        | Get own active deposit                                  |
+| POST   | `/api/v1/gts/deposit`                        | Deposit a creature                                      |
+| GET    | `/api/v1/gts/search`                         | Search deposits (`?speciesId=&level=&gender=&page=`)    |
+| POST   | `/api/v1/gts/trade/:depositId`               | Execute a trade                                         |
+| DELETE | `/api/v1/gts/deposit`                        | Withdraw own deposit                                    |
+| GET    | `/api/v1/gts/pending`                        | List creatures received while offline                   |
+| POST   | `/api/v1/gts/pending/claim/:pendingResultId` | Claim a pending result (retrieve the received creature) |
 
 **Mystery Gift** — player routes require `x-player-id`, admin routes require `x-admin-key`
 
@@ -294,6 +296,22 @@ WebSocket close codes: `4001` invalid API key, `4002` missing player ID, `4003` 
 | POST   | `/api/v1/mystery-gift/admin/purge`   | Purge expired gifts         |
 
 The full OpenAPI specification is served at `/api-docs` when the server is running.
+
+---
+
+## Telemetry API
+
+The telemetry dashboard HTML page is available at `/telemetry` (no key required). The JSON endpoints below all require the `x-admin-key` header.
+
+| Method | Path                    | Description                                            |
+| ------ | ----------------------- | ------------------------------------------------------ |
+| GET    | `/telemetry`            | Live HTML dashboard (no auth required)                 |
+| GET    | `/telemetry/summary`    | Overall metrics snapshot (requests, errors, WS counts) |
+| GET    | `/telemetry/routes`     | Per-route request and error counts                     |
+| GET    | `/telemetry/ws-types`   | WebSocket message counts broken down by message type   |
+| GET    | `/telemetry/ws-clients` | Currently connected WebSocket client list              |
+| GET    | `/telemetry/events`     | Recent telemetry events log                            |
+| GET    | `/telemetry/snapshots`  | Historical snapshots persisted in MongoDB              |
 
 ---
 
@@ -367,18 +385,19 @@ npm run test:coverage
 
 ## Environment Variables Reference
 
-| Variable                     | Required    | Default       | Description                                                        |
-| ---------------------------- | ----------- | ------------- | ------------------------------------------------------------------ |
-| `PORT`                       | No          | `3000`        | HTTP server port                                                   |
-| `NODE_ENV`                   | No          | `development` | Runtime environment (`development`, `production`, `test`)          |
-| `DB_HOST`                    | No          | `localhost`   | MongoDB host. Set to `mongodb` when using Docker Compose.          |
-| `DB_PORT`                    | No          | `27017`       | MongoDB port                                                       |
-| `DB_NAME`                    | No          | `psdk_online` | Database name                                                      |
-| `DB_USER`                    | No          | _(empty)_     | MongoDB username. Leave empty for unauthenticated local instances. |
-| `DB_PSWD`                    | No          | _(empty)_     | MongoDB password                                                   |
-| `API_KEY`                    | Yes         | _(none)_      | Shared key required on every client request                        |
-| `ADMIN_KEY`                  | Yes         | _(none)_      | Separate key for admin and telemetry endpoints                     |
-| `GTS_SPECIES_BLACKLIST`      | No          | _(empty)_     | Comma-separated species IDs blocked from the GTS (e.g. `150,151`) |
-| `GTS_EXPIRY_DAYS`            | No          | `30`          | Days before a GTS deposit (or pending result) expires              |
-| `MONGO_INITDB_ROOT_USERNAME` | Docker only | _(none)_      | MongoDB root admin username, created on first container start      |
-| `MONGO_INITDB_ROOT_PASSWORD` | Docker only | _(none)_      | MongoDB root admin password                                        |
+| Variable                     | Required    | Default       | Description                                                                                                               |
+| ---------------------------- | ----------- | ------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `PORT`                       | No          | `3000`        | HTTP server port                                                                                                          |
+| `NODE_ENV`                   | No          | `development` | Runtime environment (`development`, `production`, `test`)                                                                 |
+| `DB_HOST`                    | No          | `localhost`   | MongoDB host. Set to `mongodb` when using Docker Compose.                                                                 |
+| `DB_PORT`                    | No          | `27017`       | MongoDB port                                                                                                              |
+| `DB_NAME`                    | No          | `psdk_online` | Database name                                                                                                             |
+| `DB_USER`                    | No          | _(empty)_     | MongoDB username. Leave empty for unauthenticated local instances.                                                        |
+| `DB_PSWD`                    | No          | _(empty)_     | MongoDB password                                                                                                          |
+| `API_KEY`                    | Yes         | _(none)_      | Shared key required on every client request                                                                               |
+| `ADMIN_KEY`                  | Yes         | _(none)_      | Separate key for admin and telemetry endpoints                                                                            |
+| `GTS_SPECIES_BLACKLIST`      | No          | _(empty)_     | Comma-separated species IDs blocked from the GTS (e.g. `150,151`)                                                         |
+| `GTS_EXPIRY_DAYS`            | No          | `30`          | Days before a GTS deposit (or pending result) expires                                                                     |
+| `DAYS_PLAYER_INACTIVE`       | No          | `30`          | Days of inactivity before a player account is automatically deleted. Reset on every login, heartbeat, and profile update. |
+| `MONGO_INITDB_ROOT_USERNAME` | Docker only | _(none)_      | MongoDB root admin username, created on first container start                                                             |
+| `MONGO_INITDB_ROOT_PASSWORD` | Docker only | _(none)_      | MongoDB root admin password                                                                                               |

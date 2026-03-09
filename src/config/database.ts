@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { ENV } from './env';
+import { PlayerService } from '../services/PlayerService';
 
 /**
  * Opens the Mongoose connection to MongoDB and registers reconnection listeners.

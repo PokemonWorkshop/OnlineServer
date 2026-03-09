@@ -12,11 +12,12 @@ const mockFindOneAndUpdate   = vi.fn();
 
 vi.mock('../../src/models/Player', () => ({
   Player: {
-    findOne:          (...a: any[]) => mockFindOne(...a),
-    find:             (...a: any[]) => mockFind(...a),
+    findOne:           (...a: any[]) => mockFindOne(...a),
+    find:              (...a: any[]) => mockFind(...a),
     findByIdAndUpdate: (...a: any[]) => mockFindByIdAndUpdate(...a),
-    findOneAndUpdate: (...a: any[]) => mockFindOneAndUpdate(...a),
+    findOneAndUpdate:  (...a: any[]) => mockFindOneAndUpdate(...a),
   },
+  playerExpiresAt: () => new Date(),
 }));
 
 describe('FriendService', () => {

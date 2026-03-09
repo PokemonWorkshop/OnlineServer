@@ -1,4 +1,4 @@
-import { Player, PlayerData } from '../models/Player';
+import { Player, PlayerData, playerExpiresAt } from '../models/Player';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -84,7 +84,7 @@ export class FriendService {
    * @param playerId - The player to update.
    */
   async heartbeat(playerId: string): Promise<void> {
-    await Player.findOneAndUpdate({ playerId }, { lastSeen: new Date() });
+    await Player.findOneAndUpdate({ playerId }, { lastSeen: new Date(), expiresAt: playerExpiresAt() });
   }
 
   /**

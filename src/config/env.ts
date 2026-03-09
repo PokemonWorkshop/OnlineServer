@@ -80,4 +80,12 @@ export const ENV = {
    */
   GTS_EXPIRY_DAYS: parseInt(process.env.GTS_EXPIRY_DAYS || '30'),
 
+  /**
+   * Number of days of inactivity before a player document is automatically
+   * deleted by the MongoDB TTL index on `Player.expiresAt`.
+   * `expiresAt` is refreshed on every login, heartbeat, and profile update.
+   * Defaults to `30`.
+   */
+  DAYS_PLAYER_INACTIVE: parseInt(process.env.DAYS_PLAYER_INACTIVE || '30'),
+
 } as const;
