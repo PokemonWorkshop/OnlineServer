@@ -10,7 +10,7 @@ const mockPlayerDeleteOne = vi.fn();
 const mockGtsDeleteOne = vi.fn();
 const mockPendingDeleteMany = vi.fn();
 
-vi.mock('../../src/models/Player', () => ({
+vi.mock('../../src/models/Players', () => ({
   Player: {
     findOne: (...a: any[]) => ({ lean: () => mockPlayerFindOne(...a) }),
     updateMany: (...a: any[]) => mockPlayerUpdateMany(...a),

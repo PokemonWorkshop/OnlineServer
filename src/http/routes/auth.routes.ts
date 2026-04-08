@@ -1,25 +1,27 @@
 import { Router, sendJson, readBody } from '../router';
 import { extractPlayer } from '../middleware';
-import { Player, playerExpiresAt } from '../../models/Player';
+import { Player, playerExpiresAt } from '../../models/Players';
 import { FriendService } from '../../services/FriendService';
 import { playerService } from '../../services/PlayerService';
 import { z } from 'zod';
 
 const RegisterSchema = z.object({
-  playerId:    z.string().min(1).max(64).trim(),
+  playerId: z.string().min(1).max(64).trim(),
   trainerName: z.string().min(1).max(16).trim(),
-  isFemale:    z.boolean().optional(),
-  spriteId:    z.string().trim().optional(),
+  isFemale: z.boolean().optional(),
+  spriteId: z.string().trim().optional(),
 });
 
-const UpdateProfileSchema = z.object({
-  trainerName:    z.string().min(1).max(16).trim().optional(),
-  isFemale:       z.boolean().optional(),
-  spriteId:       z.string().trim().optional(),
-  profileMessage: z.string().max(256).trim().optional(),
-}).refine(data => Object.keys(data).length > 0, {
-  message: 'At least one field must be provided',
-});
+const UpdateProfileSchema = z
+  .object({
+    trainerName: z.string().min(1).max(16).trim().optional(),
+    isFemale: z.boolean().optional(),
+    spriteId: z.string().trim().optional(),
+    profileMessage: z.string().max(256).trim().optional(),
+  })
+  .refine((data) => Object.keys(data).length > 0, {
+    message: 'At least one field must be provided',
+  });
 
 const DeleteProfileSchema = z.object({
   confirm: z.literal(true),
@@ -44,7 +46,10 @@ export function registerAuthRoutes(router: Router): void {
 
     const parsed = RegisterSchema.safeParse(body);
     if (!parsed.success) {
-      sendJson(res, 400, { error: 'Invalid data', details: parsed.error.flatten() });
+      sendJson(res, 400, {
+        error: 'Invalid data',
+        details: z.treeifyError(parsed.error),
+      });
       return;
     }
 
@@ -54,41 +59,45 @@ export function registerAuthRoutes(router: Router): void {
     if (existing) {
       const nameChanged = existing.trainerName !== trainerName;
       const updates: Record<string, unknown> = {
-        lastSeen:  new Date(),
+        lastSeen: new Date(),
         expiresAt: playerExpiresAt(),
       };
 
-      if (nameChanged)            updates.trainerName = trainerName;
-      if (isFemale !== undefined) updates.isFemale    = isFemale;
-      if (spriteId !== undefined) updates.spriteId    = spriteId;
+      if (nameChanged) updates.trainerName = trainerName;
+      if (isFemale !== undefined) updates.isFemale = isFemale;
+      if (spriteId !== undefined) updates.spriteId = spriteId;
 
       await Player.findByIdAndUpdate(existing._id, updates);
 
       sendJson(res, 200, {
-        friendCode:        existing.friendCode,
+        friendCode: existing.friendCode,
         trainerName,
         alreadyRegistered: true,
-        nameUpdated:       nameChanged,
+        nameUpdated: nameChanged,
       });
       return;
     }
 
     // First registration
-    const friendCode = FriendService.generateFriendCode();
-    const player = await Player.create({
-      playerId,
-      trainerName,
-      friendCode,
-      ...(isFemale !== undefined && { isFemale }),
-      ...(spriteId !== undefined && { spriteId }),
-    });
+    try {
+      const player = await FriendService.createPlayerWithUniqueFriendCode({
+        playerId,
+        trainerName,
+        ...(isFemale !== undefined && { isFemale }),
+        ...(spriteId !== undefined && { spriteId }),
+      });
 
-    sendJson(res, 201, {
-      friendCode:        player.friendCode,
-      trainerName:       player.trainerName,
-      alreadyRegistered: false,
-      nameUpdated:       false,
-    });
+      sendJson(res, 201, {
+        friendCode: player.friendCode,
+        trainerName: player.trainerName,
+        alreadyRegistered: false,
+        nameUpdated: false,
+      });
+    } catch (error) {
+      sendJson(res, 500, {
+        error: 'Unable to create player',
+      });
+    }
   });
 
   /**
@@ -112,7 +121,10 @@ export function registerAuthRoutes(router: Router): void {
 
     const parsed = UpdateProfileSchema.safeParse(body);
     if (!parsed.success) {
-      sendJson(res, 400, { error: 'Invalid data', details: parsed.error.flatten() });
+      sendJson(res, 400, {
+        error: 'Invalid data',
+        details: z.treeifyError(parsed.error),
+      });
       return;
     }
 
@@ -128,9 +140,9 @@ export function registerAuthRoutes(router: Router): void {
     }
 
     sendJson(res, 200, {
-      trainerName:    player.trainerName,
-      isFemale:       player.isFemale,
-      spriteId:       player.spriteId,
+      trainerName: player.trainerName,
+      isFemale: player.isFemale,
+      spriteId: player.spriteId,
       profileMessage: player.profileMessage,
     });
   });
@@ -158,7 +170,10 @@ export function registerAuthRoutes(router: Router): void {
 
     const parsed = DeleteProfileSchema.safeParse(body);
     if (!parsed.success) {
-      sendJson(res, 400, { error: 'Missing confirmation', details: parsed.error.flatten() });
+      sendJson(res, 400, {
+        error: 'Missing confirmation',
+        details: z.treeifyError(parsed.error),
+      });
       return;
     }
 

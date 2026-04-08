@@ -19,33 +19,33 @@ export function playerExpiresAt(): Date {
  * in service methods, route handlers, and unit tests.
  */
 export interface PlayerData {
-  _id:             Types.ObjectId;
+  _id: Types.ObjectId;
   /** Immutable game-side identifier (set by the PSDK client). */
-  playerId:        string;
+  playerId: string;
   /** Display name chosen by the trainer — may change on each login. */
-  trainerName:     string;
+  trainerName: string;
   /** Whether the trainer is female (false = male, true = female). Defaults to false. */
-  isFemale:        boolean;
+  isFemale: boolean;
   /** Sprite identifier used to render the trainer overworld character. */
-  spriteId:        string;
+  spriteId: string;
   /** Message displayed on the player's public profile. */
-  profileMessage:  string;
+  profileMessage: string;
   /** Human-readable unique code used for friend requests (format `XXXXXXXX`). */
-  friendCode:      string;
+  friendCode: string;
   /** List of friend codes of accepted friends. */
-  friends:         string[];
+  friends: string[];
   /** Incoming friend codes waiting for acceptance. */
   pendingRequests: string[];
   /** UTC timestamp of the last successful heartbeat or login. */
-  lastSeen:        Date;
+  lastSeen: Date;
   /**
    * UTC date after which MongoDB will automatically delete this document.
    * Recomputed on every login, heartbeat, and profile update.
    * Controlled by the `DAYS_PLAYER_INACTIVE` environment variable.
    */
-  expiresAt:       Date;
-  createdAt:       Date;
-  updatedAt:       Date;
+  expiresAt: Date;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 /**
@@ -60,16 +60,16 @@ export interface IPlayer extends PlayerData, Document {
 
 const PlayerSchema = new Schema<IPlayer>(
   {
-    playerId:        { type: String,  required: true, unique: true, index: true },
-    trainerName:     { type: String,  required: true, trim: true, maxlength: 16 },
-    isFemale:        { type: Boolean, default: false },
-    spriteId:        { type: String,  default: '', trim: true },
-    profileMessage:  { type: String,  default: '', trim: true, maxlength: 256 },
-    friendCode:      { type: String,  required: true, unique: true, index: true },
-    friends:         { type: [String], default: [] },
+    playerId: { type: String, required: true, unique: true, index: true },
+    trainerName: { type: String, required: true, trim: true, maxlength: 16 },
+    isFemale: { type: Boolean, default: false },
+    spriteId: { type: String, default: '', trim: true },
+    profileMessage: { type: String, default: '', trim: true, maxlength: 256 },
+    friendCode: { type: String, required: true, unique: true, index: true },
+    friends: { type: [String], default: [] },
     pendingRequests: { type: [String], default: [] },
-    lastSeen:        { type: Date,    default: Date.now },
-    expiresAt:       { type: Date,    default: playerExpiresAt },
+    lastSeen: { type: Date, default: Date.now },
+    expiresAt: { type: Date, default: playerExpiresAt },
   },
   { timestamps: true },
 );

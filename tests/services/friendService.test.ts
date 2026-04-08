@@ -10,7 +10,7 @@ const mockFind               = vi.fn();
 const mockFindByIdAndUpdate  = vi.fn();
 const mockFindOneAndUpdate   = vi.fn();
 
-vi.mock('../../src/models/Player', () => ({
+vi.mock('../../src/models/Players', () => ({
   Player: {
     findOne:           (...a: any[]) => mockFindOne(...a),
     find:              (...a: any[]) => mockFind(...a),

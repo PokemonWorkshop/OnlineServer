@@ -1,4 +1,4 @@
-import { Player } from '../models/Player';
+import { Player } from '../models/Players';
 import { GtsDeposit } from '../models/GtsDeposit';
 import { GtsPendingResult } from '../models/GtsPendingResult';
 

@@ -1,4 +1,4 @@
-import { Player, PlayerData, playerExpiresAt } from '../models/Player';
+import { Player, PlayerData, playerExpiresAt } from '../models/Players';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -9,11 +9,22 @@ import { Player, PlayerData, playerExpiresAt } from '../models/Player';
  */
 const ONLINE_THRESHOLD_MS = 60_000; // 60 seconds
 
+/**
+ * Maximum number of attempts to generate and insert a unique friend code
+ * before giving up.
+ *
+ * @remarks
+ * Friend code collisions are expected to be rare, but they are still possible.
+ * The database `unique` index on `friendCode` remains the source of truth.
+ */
+const FRIEND_CODE_MAX_RETRIES = 5;
+
 // ─── Service ──────────────────────────────────────────────────────────────────
 
 /**
  * Handles all friend-related operations: list retrieval, heartbeat,
- * friend requests, acceptance, declination, and removal.
+ * friend requests, acceptance, declination, removal, and friend-code-backed
+ * player creation.
  *
  * @remarks
  * All lookups use `friendCode` as the social identifier so that players can
@@ -21,18 +32,65 @@ const ONLINE_THRESHOLD_MS = 60_000; // 60 seconds
  */
 export class FriendService {
   /**
-   * Generates a unique human-readable friend code.
+   * Generates a human-readable friend code.
    *
    * @remarks
    * Format: `XXXXXXXX` (8 numeric digits).
-   * Uniqueness is not guaranteed at generation time — the database
-   * `unique` index on `friendCode` provides the final guarantee.
    *
-   * @returns A new friend code string.
+   * This method only generates a candidate value. It does **not** guarantee
+   * uniqueness by itself. Final uniqueness is enforced by the database
+   * `unique` index on `friendCode`.
+   *
+   * @returns A new friend code string candidate.
    */
   static generateFriendCode(): string {
     const num = Math.floor(10000000 + Math.random() * 90000000);
     return num.toString();
+  }
+
+  /**
+   * Creates a player with a unique friend code.
+   *
+   * @remarks
+   * This method retries player creation if MongoDB rejects the insert because
+   * the generated `friendCode` already exists.
+   *
+   * The uniqueness check is intentionally delegated to MongoDB's `unique` index
+   * to avoid race conditions between a pre-check and the actual insert.
+   *
+   * @param data - Base player data required for creation.
+   * @returns The newly created player document.
+   *
+   * @throws Error if a unique friend code could not be generated after the
+   * configured number of retries, or if another database error occurs.
+   */
+  static async createPlayerWithUniqueFriendCode(data: {
+    playerId: string;
+    trainerName: string;
+    isFemale?: boolean;
+    spriteId?: string;
+  }) {
+    for (let attempt = 1; attempt <= FRIEND_CODE_MAX_RETRIES; attempt++) {
+      try {
+        const friendCode = this.generateFriendCode();
+
+        return await Player.create({
+          ...data,
+          friendCode,
+        });
+      } catch (error: any) {
+        const isDuplicateFriendCode =
+          error?.code === 11000 && error?.keyPattern?.friendCode;
+
+        if (isDuplicateFriendCode) {
+          continue;
+        }
+
+        throw error;
+      }
+    }
+
+    throw new Error('Unable to generate a unique friend code');
   }
 
   /**
@@ -84,7 +142,10 @@ export class FriendService {
    * @param playerId - The player to update.
    */
   async heartbeat(playerId: string): Promise<void> {
-    await Player.findOneAndUpdate({ playerId }, { lastSeen: new Date(), expiresAt: playerExpiresAt() });
+    await Player.findOneAndUpdate(
+      { playerId },
+      { lastSeen: new Date(), expiresAt: playerExpiresAt() },
+    );
   }
 
   /**

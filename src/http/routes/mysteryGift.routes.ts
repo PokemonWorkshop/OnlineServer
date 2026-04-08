@@ -61,8 +61,8 @@ const CreateGiftSchema = z
 
     // Validity
     alwaysAvailable: z.boolean().optional().default(false),
-    validFrom: z.string().datetime().optional(),
-    validTo: z.string().datetime().optional(),
+    validFrom: z.iso.datetime().optional(),
+    validTo: z.iso.datetime().optional(),
     rarity: z.number().int().min(0).max(3).optional().default(0),
   })
   .refine((d) => d.type !== 'code' || !!d.code, {
@@ -122,7 +122,7 @@ export function registerMysteryGiftRoutes(router: Router): void {
     if (!parsed.success) {
       sendJson(res, 400, {
         error: 'Invalid data',
-        details: parsed.error.flatten(),
+        details: z.treeifyError(parsed.error),
       });
       return;
     }
