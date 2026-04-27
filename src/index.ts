@@ -6,11 +6,12 @@ import { WebSocketServer } from 'ws';
 import { connectDatabase } from './config/database';
 import { ENV } from './config/env';
 import { Router, sendJson } from './http/router';
-import { apiKeyMiddleware } from './http/middleware';
+import { apiKeyMiddleware, maintenanceModeMiddleware } from './http/middleware';
 import { registerAuthRoutes } from './http/routes/auth.routes';
 import { registerGtsRoutes } from './http/routes/gts.routes';
 import { registerMysteryGiftRoutes } from './http/routes/mysteryGift.routes';
 import { registerFriendRoutes } from './http/routes/friends.routes';
+import { registerMaintenanceRoutes } from './http/routes/maintenance.routes';
 import { registerTelemetryRoutes } from './http/routes/telemetry.routes';
 import { openApiSpec, swaggerUiHtml } from './swagger';
 import { createWsServer } from './ws/WsServer';
@@ -53,11 +54,15 @@ async function bootstrap(): Promise<void> {
   // Middleware 2: API Key
   router.use(apiKeyMiddleware);
 
+  // Middleware 3: maintenance gate for player-facing routes
+  router.use(maintenanceModeMiddleware);
+
   // Register routes
   registerAuthRoutes(router);
   registerGtsRoutes(router);
   registerMysteryGiftRoutes(router);
   registerFriendRoutes(router);
+  registerMaintenanceRoutes(router);
   registerTelemetryRoutes(router);
 
   // ── Native THTP server ────────────────────────────────

@@ -16,10 +16,18 @@
  * - Disconnection cleanup
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createServer, Server } from 'node:http';
 import { WebSocketServer, WebSocket } from 'ws';
 import { createWsServer, clients } from '../../src/ws/WsServer';
+
+const mockGetStatus = vi.fn();
+
+vi.mock('../../src/services/MaintenanceService', () => ({
+  maintenanceService: {
+    getStatus: (...a: any[]) => mockGetStatus(...a),
+  },
+}));
 
 // ── Server lifecycle helpers ──────────────────────────────────────────────────
 
@@ -94,6 +102,27 @@ function waitForMessage(ws: WebSocket): Promise<any> {
   });
 }
 
+function waitForMessages(ws: WebSocket, count: number): Promise<any[]> {
+  return new Promise((resolve, reject) => {
+    const messages: any[] = [];
+    const timer = setTimeout(() => {
+      ws.off('message', onMessage);
+      reject(new Error('timeout waiting for message'));
+    }, 2000);
+
+    const onMessage = (raw: any) => {
+      messages.push(JSON.parse(raw.toString()));
+      if (messages.length === count) {
+        clearTimeout(timer);
+        ws.off('message', onMessage);
+        resolve(messages);
+      }
+    };
+
+    ws.on('message', onMessage);
+  });
+}
+
 function send(ws: WebSocket, type: string, payload?: unknown) {
   ws.send(JSON.stringify({ type, payload }));
 }
@@ -102,6 +131,11 @@ function send(ws: WebSocket, type: string, payload?: unknown) {
 
 describe('WsServer', () => {
   beforeEach(async () => {
+    mockGetStatus.mockResolvedValue({
+      enabled: false,
+      message: '',
+      endAt: null,
+    });
     clients.clear();
     await startServer();
   });
@@ -127,6 +161,23 @@ describe('WsServer', () => {
     const { code, reason } = await waitForClose(ws);
     expect(code).toBe(4002);
     expect(reason).toContain('Missing playerId');
+  });
+
+  it('closes the connection (4004) when maintenance is enabled', async () => {
+    mockGetStatus.mockResolvedValue({
+      enabled: true,
+      message: 'Maintenance in progress',
+      endAt: '2026-04-28T20:00:00.000Z',
+    });
+
+    const ws = connect({ playerId: 'player-maint-down' });
+    const msg = await waitForMessage(ws);
+    expect(msg.type).toBe('MAINTENANCE_STATUS');
+
+    const { code, reason } = await waitForClose(ws);
+    expect(code).toBe(4004);
+    expect(reason).toContain('maintenance');
+    expect(clients.has('player-maint-down')).toBe(false);
   });
 
   // ── Connection tracking ─────────────────────────────────────────────────────
@@ -177,6 +228,26 @@ describe('WsServer', () => {
     ws.close();
   });
 
+  it('returns the maintenance status when requested explicitly', async () => {
+    const ws = connect({ playerId: 'player-maintenance' });
+    await waitForOpen(ws);
+    mockGetStatus.mockResolvedValue({
+      enabled: true,
+      message: 'Maintenance in progress',
+      endAt: '2026-04-28T20:00:00.000Z',
+    });
+    const messagePromise = waitForMessage(ws);
+    send(ws, 'MAINTENANCE_STATUS');
+    const msg = await messagePromise;
+    expect(msg.type).toBe('MAINTENANCE_STATUS');
+    expect(msg.payload).toEqual({
+      enabled: true,
+      message: 'Maintenance in progress',
+      endAt: '2026-04-28T20:00:00.000Z',
+    });
+    ws.close();
+  });
+
   // ── Error cases ─────────────────────────────────────────────────────────────
 
   it('sends ERROR for invalid JSON', async () => {
@@ -218,6 +289,24 @@ describe('WsServer', () => {
     send(ws, 'BATTLE_CHALLENGE', { targetPlayerId: 'ghost-player' });
     const msg = await waitForMessage(ws);
     expect(msg.type).toBe('ERROR');
+    ws.close();
+  });
+
+  it('blocks gameplay messages when maintenance becomes enabled', async () => {
+    const ws = connect({ playerId: 'player-maint-live' });
+    await waitForOpen(ws);
+
+    mockGetStatus.mockResolvedValue({
+      enabled: true,
+      message: 'Maintenance in progress',
+      endAt: '2026-04-28T20:00:00.000Z',
+    });
+
+    const messagesPromise = waitForMessages(ws, 2);
+    send(ws, 'BATTLE_CHALLENGE', { targetPlayerId: 'ghost-player' });
+    const [first, second] = await messagesPromise;
+    expect([first.type, second.type]).toContain('MAINTENANCE_STATUS');
+    expect([first.type, second.type]).toContain('ERROR');
     ws.close();
   });
 

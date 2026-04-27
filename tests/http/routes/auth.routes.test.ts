@@ -25,7 +25,9 @@ vi.mock('../../../src/models/Players', () => ({
 }));
 
 vi.mock('../../../src/services/FriendService', () => ({
-  FriendService: { generateFriendCode: () => '12345678' },
+  FriendService: {
+    createPlayerWithUniqueFriendCode: (...a: any[]) => mockPlayerCreate(...a),
+  },
 }));
 
 vi.mock('../../../src/services/PlayerService', () => ({

@@ -1,17 +1,17 @@
-import { WebSocketServer, WebSocket } from 'ws';
 import { IncomingMessage } from 'node:http';
+import { WebSocketServer, WebSocket } from 'ws';
 import { verifyWsApiKey } from '../http/middleware';
-import { AuthenticatedWs, send } from './types';
+import { telemetry } from '../telemetry/store';
+import { maintenanceService } from '../services/MaintenanceService';
 import { handleBattleMessage, cleanupBattle } from './handlers/battleHandler';
 import { handleTradeMessage, cleanupTrade } from './handlers/tradeHandler';
-import { telemetry } from '../telemetry/store';
+import { clients } from './clients';
+import { AuthenticatedWs, send } from './types';
 
-/** Global map of connected clients: playerId → socket */
-export const clients = new Map<string, AuthenticatedWs>();
+export { clients } from './clients';
 
 export function createWsServer(wss: WebSocketServer): void {
-  wss.on('connection', (rawWs: WebSocket, req: IncomingMessage) => {
-    // ── Authentication ─────────────────────────────────────
+  wss.on('connection', async (rawWs: WebSocket, req: IncomingMessage) => {
     const url = new URL(req.url || '/', 'http://localhost');
 
     const apiKey = url.searchParams.get('apiKey') ?? '';
@@ -32,23 +32,26 @@ export function createWsServer(wss: WebSocketServer): void {
     ws.playerId = playerId;
     ws.trainerName = decodeURIComponent(trainerName);
 
-    // Close previous session if the player reconnects
+    const maintenanceStatus = await maintenanceService.getStatus();
+    if (maintenanceStatus.enabled) {
+      send(ws, 'MAINTENANCE_STATUS', maintenanceStatus);
+      rawWs.close(4004, 'Server in maintenance');
+      return;
+    }
+
     const existing = clients.get(playerId);
     if (existing && existing.readyState === WebSocket.OPEN) {
       existing.close(4003, 'Replaced by a new connection');
     }
 
     clients.set(playerId, ws);
-
-    // ── Connection telemetry ───────────────────────────────
     telemetry.recordWsConnect(playerId);
 
     console.log(
-      `[WS] ✅ ${ws.trainerName} (${ws.playerId}) connected — ${clients.size} client(s)`,
+      `[WS] connected ${ws.trainerName} (${ws.playerId}) - ${clients.size} client(s)`,
     );
 
-    // ── Incoming messages ─────────────────────────────────
-    ws.on('message', (raw) => {
+    ws.on('message', async (raw) => {
       let type: string;
       let payload: unknown;
 
@@ -68,12 +71,28 @@ export function createWsServer(wss: WebSocketServer): void {
         return;
       }
 
-      // ── Message telemetry ───────────────────────────────
       telemetry.recordWsMessage(type, playerId);
 
-      // Keepalive
       if (type === 'PING') {
         send(ws, 'PONG');
+        return;
+      }
+
+      if (type === 'MAINTENANCE_STATUS') {
+        maintenanceService
+          .getStatus()
+          .then((status) => send(ws, 'MAINTENANCE_STATUS', status))
+          .catch((err: Error) => {
+            send(ws, 'ERROR', { message: 'Unable to load maintenance status' });
+            telemetry.recordWsError(playerId, err.message);
+          });
+        return;
+      }
+
+      const currentMaintenance = await maintenanceService.getStatus();
+      if (currentMaintenance.enabled) {
+        send(ws, 'MAINTENANCE_STATUS', currentMaintenance);
+        send(ws, 'ERROR', { message: 'Server is in maintenance mode' });
         return;
       }
 
@@ -91,28 +110,22 @@ export function createWsServer(wss: WebSocketServer): void {
       telemetry.recordWsError(playerId, `Unknown type: ${type}`);
     });
 
-    // ── Disconnection ────────────────────────────────────
     ws.on('close', (code, reason) => {
       clients.delete(playerId);
       cleanupBattle(ws);
       cleanupTrade(ws);
-
-      // ── Disconnection telemetry ─────────────────────────
       telemetry.recordWsDisconnect(playerId, code);
 
       console.log(
-        `[WS] ❌ ${ws.trainerName} (${ws.playerId}) disconnected` +
-          ` — code ${code}${reason.length ? ` (${reason})` : ''}` +
-          ` — ${clients.size} client(s) remaining`,
+        `[WS] disconnected ${ws.trainerName} (${ws.playerId})` +
+          ` - code ${code}${reason.length ? ` (${reason})` : ''}` +
+          ` - ${clients.size} client(s) remaining`,
       );
     });
 
     ws.on('error', (err) => {
       telemetry.recordWsError(playerId, err.message);
-      console.error(
-        `[WS] Error for ${ws.trainerName} (${ws.playerId}):`,
-        err.message,
-      );
+      console.error(`[WS] Error for ${ws.trainerName} (${ws.playerId}):`, err.message);
     });
   });
 }
