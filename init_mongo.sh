@@ -1,35 +1,39 @@
 #!/bin/bash
+# init_mongo.sh
+#
+# Runs once on first container startup (empty data directory).
+# Creates the application database user with readWrite access.
+#
+# Required environment variables (injected by Docker Compose):
+#   DB_NAME  — name of the application database
+#   DB_USER  — application user username
+#   DB_PSWD  — application user password
+
 set -e
 
-echo "🔑 Initializing MongoDB users and database..."
+echo "[init_mongo] Creating application user for database: ${DB_NAME}"
 
-mongosh <<EOF
-# Create app user with read/write access only to DB_NAME
-use $DB_NAME;
-if (db.getUser("$DB_USER") == null) {
+mongosh --quiet \
+  -u "${MONGO_INITDB_ROOT_USERNAME}" \
+  -p "${MONGO_INITDB_ROOT_PASSWORD}" \
+  --authenticationDatabase admin \
+  <<EOF
+
+use ${DB_NAME};
+
+const userExists = db.getUser("${DB_USER}") !== null;
+
+if (!userExists) {
   db.createUser({
-    user: "$DB_USER",
-    pwd: "$DB_PSWD",
-    roles: [ { role: "readWrite", db: "$DB_NAME" } ]
+    user: "${DB_USER}",
+    pwd:  "${DB_PSWD}",
+    roles: [{ role: "readWrite", db: "${DB_NAME}" }]
   });
-  print("✅ App user $DB_USER created with read/write on $DB_NAME.");
+  print("[init_mongo] User '${DB_USER}' created with readWrite on '${DB_NAME}'.");
 } else {
-  print("ℹ️ App user $DB_USER already exists, skipping creation.");
+  print("[init_mongo] User '${DB_USER}' already exists, skipping.");
 }
+
 EOF
 
-echo "✅ MongoDB initialization complete."
-
-# use admin;
-
-# # Create root user if it doesn't exist
-# if (db.getUser("$DB_ROOT") == null) {
-#   db.createUser({
-#     user: "$DB_ROOT",
-#     pwd: "$DB_CRED",
-#     roles: [ { role: "root", db: "admin" } ]
-#   });
-#   print("✅ Root user $DB_ROOT created.");
-# } else {
-#   print("ℹ️ Root user $DB_ROOT already exists, skipping creation.");
-# }
+echo "[init_mongo] Initialization complete."

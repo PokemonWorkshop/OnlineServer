@@ -1,0 +1,1381 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PSDK Online — API Docs</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #1d1c22;
+        --bg2: #2b2a32;
+        --bg3: #3e3d47;
+        --border: #3e3d47;
+        --border2: #6b677e;
+        --text: #e8eaf6;
+        --text2: #a2a2a7;
+        --text3: #656572;
+        --accent: #6c72f5;
+        --accent2: #8b5cf6;
+        --accent-bg: rgba(108, 114, 245, 0.12);
+        --green: #4ade80;
+        --green-bg: rgba(74, 222, 128, 0.12);
+        --red: #f87171;
+        --red-bg: rgba(248, 113, 113, 0.12);
+        --yellow: #fbbf24;
+        --yellow-bg: rgba(251, 191, 36, 0.12);
+        --cyan: #22d3ee;
+        --cyan-bg: rgba(34, 211, 238, 0.12);
+        --orange: #fb923c;
+        --pink: #f472b6;
+      }
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: 'Exo 2', sans-serif;
+        font-size: 14px;
+        line-height: 1.6;
+        display: flex;
+        height: 100vh;
+        overflow: hidden;
+      }
+
+      /* ── Icon rail ───────────────────────────────────── */
+      .rail {
+        width: 52px;
+        min-width: 52px;
+        background: var(--bg2);
+        border-right: 2px solid var(--bg);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 12px 0;
+        gap: 4px;
+      }
+      .rail-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text3);
+        font-size: 18px;
+        cursor: pointer;
+        transition:
+          background 0.15s,
+          color 0.15s;
+        text-decoration: none;
+      }
+      .rail-icon:hover {
+        background: var(--bg3);
+        color: var(--text2);
+      }
+      .rail-icon.active {
+        background: var(--accent-bg);
+        color: var(--accent);
+      }
+      .rail-sep {
+        width: 28px;
+        height: 1px;
+        background: var(--border);
+        margin: 4px 0;
+      }
+
+      /* ── Sidebar ─────────────────────────────────────── */
+      #sidebar {
+        width: 210px;
+        min-width: 210px;
+        background: var(--bg2);
+        border-right: 2px solid var(--bg);
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+      }
+      .sb-top {
+        padding: 16px 14px 12px;
+        border-bottom: 2px solid var(--bg);
+        flex-shrink: 0;
+      }
+      .sb-top h1 {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--text2);
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+      }
+      .sb-top .ver {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 10px;
+        color: var(--text3);
+        margin-top: 2px;
+      }
+
+      .sb-group {
+        padding: 12px 8px 4px;
+      }
+      .sb-label {
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: var(--text3);
+        padding: 0 6px;
+        margin-bottom: 2px;
+      }
+      .nav-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 8px;
+        border-radius: 6px;
+        color: var(--text2);
+        font-size: 13px;
+        font-weight: 500;
+        text-decoration: none;
+        cursor: pointer;
+        transition:
+          background 0.12s,
+          color 0.12s;
+      }
+      .nav-item:hover {
+        background: var(--bg3);
+        color: var(--text);
+      }
+      .nav-item.active {
+        background: var(--accent-bg);
+        color: var(--accent);
+      }
+      .nav-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+
+      /* ── Content ─────────────────────────────────────── */
+      #content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      .topbar {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 0 20px;
+        height: 44px;
+        flex-shrink: 0;
+        border-bottom: 2px solid var(--bg);
+        background: var(--bg2);
+      }
+      .tb-title {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text2);
+        margin-right: auto;
+      }
+      .tb-tag {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 10px;
+        padding: 3px 10px;
+        border-radius: 20px;
+        border: 1px solid var(--border2);
+        color: var(--text3);
+      }
+      .tb-select {
+        background: var(--bg3);
+        border: 1px solid var(--border2);
+        border-radius: 6px;
+        color: var(--text);
+        font-family: 'Exo 2', sans-serif;
+        font-size: 12px;
+        padding: 4px 28px 4px 10px;
+        outline: none;
+        cursor: pointer;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%239498c4' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 8px center;
+      }
+
+      #main {
+        padding: 28px 32px;
+        overflow-y: auto;
+        flex: 1;
+      }
+
+      /* ── Loading / error ─────────────────────────────── */
+      #loading {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: 12px;
+        height: 100%;
+        color: var(--text3);
+        font-size: 13px;
+      }
+      .spinner {
+        width: 32px;
+        height: 32px;
+        border: 2px solid var(--border2);
+        border-top-color: var(--bg);
+        border-radius: 50%;
+        animation: spin 0.7s linear infinite;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      .err-box {
+        background: var(--red-bg);
+        border: 1px solid var(--red);
+        border-radius: 8px;
+        padding: 12px 16px;
+        color: var(--red);
+        font-size: 13px;
+      }
+
+      /* ── Section ─────────────────────────────────────── */
+      .section {
+        margin-bottom: 40px;
+        scroll-margin-top: 20px;
+      }
+      .section-head {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 4px;
+      }
+      .section-icon {
+        font-size: 18px;
+      }
+      .section-title {
+        font-size: 16px;
+        font-weight: 800;
+        letter-spacing: -0.2px;
+      }
+      .section-desc {
+        color: var(--text2);
+        font-size: 13px;
+        margin-bottom: 14px;
+      }
+
+      /* ── Route card ──────────────────────────────────── */
+      .route-card {
+        background: var(--bg2);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        margin-bottom: 6px;
+        overflow: hidden;
+        transition: border-color 0.15s;
+      }
+      .route-card:hover {
+        border-color: var(--border2);
+      }
+      .route-hdr {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 16px;
+        cursor: pointer;
+        user-select: none;
+      }
+      .mpill {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 10px;
+        font-weight: 600;
+        padding: 3px 9px;
+        border-radius: 5px;
+        min-width: 56px;
+        text-align: center;
+        flex-shrink: 0;
+        letter-spacing: 0.3px;
+      }
+      .m-GET {
+        background: var(--green-bg);
+        color: var(--green);
+      }
+      .m-POST {
+        background: var(--accent-bg);
+        color: var(--accent);
+      }
+      .m-DELETE {
+        background: var(--red-bg);
+        color: var(--red);
+      }
+      .m-WS {
+        background: rgba(139, 92, 246, 0.15);
+        color: var(--accent2);
+      }
+      .m-PUT {
+        background: rgba(251, 191, 36, 0.15);
+        color: var(--yellow);
+      }
+      .m-PATCH {
+        background: rgba(251, 146, 60, 0.15);
+        color: var(--orange);
+      }
+
+      .rpath {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 12.5px;
+        color: var(--text);
+        flex: 1;
+        min-width: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .rpath .pp {
+        color: var(--orange);
+      }
+      .rsummary {
+        font-size: 12px;
+        color: var(--text3);
+        flex-shrink: 0;
+        padding-left: 8px;
+      }
+
+      .chevron {
+        width: 14px;
+        height: 14px;
+        color: var(--text3);
+        transition: transform 0.2s;
+        flex-shrink: 0;
+      }
+      .route-card.open .chevron {
+        transform: rotate(90deg);
+      }
+
+      .route-body {
+        display: none;
+        padding: 0 16px 16px;
+        border-top: 1px solid var(--border);
+      }
+      .route-card.open .route-body {
+        display: block;
+      }
+
+      /* ── Inner components ────────────────────────────── */
+      .rdesc {
+        font-size: 13px;
+        color: var(--text2);
+        line-height: 1.7;
+        margin: 12px 0;
+      }
+      .rdesc strong {
+        color: var(--text);
+      }
+      .rdesc .ic {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11.5px;
+        background: var(--bg3);
+        padding: 1px 5px;
+        border-radius: 4px;
+        color: var(--accent);
+      }
+
+      .auth-row {
+        display: flex;
+        gap: 6px;
+        margin-top: 15px;
+        flex-wrap: wrap;
+      }
+      .achip {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 10px;
+        font-weight: 600;
+        padding: 2px 8px;
+        border-radius: 4px;
+      }
+      .c-key {
+        background: var(--accent-bg);
+        color: var(--accent);
+      }
+      .c-pid {
+        background: var(--yellow-bg);
+        color: var(--yellow);
+      }
+      .c-pub {
+        background: var(--green-bg);
+        color: var(--green);
+      }
+
+      .blk {
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: var(--text3);
+        margin: 14px 0 8px;
+      }
+
+      .g2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+      }
+
+      /* Param table */
+      .ptbl {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      .ptbl th {
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.7px;
+        color: var(--text3);
+        text-align: left;
+        padding: 0 0 6px;
+        border-bottom: 1px solid var(--border);
+      }
+      .ptbl td {
+        padding: 7px 0;
+        border-bottom: 1px solid var(--border);
+        vertical-align: top;
+        font-size: 12.5px;
+      }
+      .ptbl tr:last-child td {
+        border-bottom: none;
+      }
+      .pn {
+        font-family: 'JetBrains Mono', monospace;
+        color: var(--orange);
+        font-size: 11.5px;
+        padding-right: 10px;
+        white-space: nowrap;
+      }
+      .pt {
+        font-family: 'JetBrains Mono', monospace;
+        color: var(--cyan);
+        font-size: 11px;
+        padding-right: 10px;
+        white-space: nowrap;
+      }
+      .pr {
+        color: var(--red);
+        font-size: 10px;
+        font-weight: 700;
+        padding-right: 10px;
+      }
+      .pd {
+        color: var(--text2);
+        font-size: 12px;
+        line-height: 1.5;
+      }
+      .pd code {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
+        background: var(--bg3);
+        padding: 1px 4px;
+        border-radius: 3px;
+        color: var(--pink);
+      }
+
+      /* Responses */
+      .resps {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+      }
+      .rrow {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 7px 10px;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        font-size: 12.5px;
+      }
+      .sc {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 12px;
+        font-weight: 600;
+        min-width: 34px;
+        padding-top: 1px;
+      }
+      .s2 {
+        color: var(--green);
+      }
+      .s4 {
+        color: var(--yellow);
+      }
+      .s5 {
+        color: var(--red);
+      }
+      .rt {
+        color: var(--text2);
+        flex: 1;
+        line-height: 1.5;
+      }
+      .rt code {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
+        background: var(--bg3);
+        padding: 1px 4px;
+        border-radius: 3px;
+        color: var(--pink);
+      }
+
+      /* Code block */
+      .cb {
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 12px 14px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11.5px;
+        line-height: 1.8;
+        color: var(--text);
+        overflow-x: auto;
+        white-space: pre;
+        margin-top: 6px;
+      }
+      .ck {
+        color: var(--accent2);
+      }
+      .cs {
+        color: var(--green);
+      }
+      .cn {
+        color: var(--orange);
+      }
+      .cc {
+        color: var(--text3);
+        font-style: italic;
+      }
+
+      /* Overview cards */
+      .ov-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-bottom: 20px;
+      }
+      .ov-card {
+        background: var(--bg2);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 16px 18px;
+      }
+      .ov-label {
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: var(--text3);
+        margin-bottom: 8px;
+      }
+      .ov-card .ic {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 12px;
+        color: var(--accent);
+        background: var(--accent-bg);
+        padding: 2px 6px;
+        border-radius: 4px;
+      }
+      .ov-card p {
+        color: var(--text2);
+        font-size: 12.5px;
+        margin-top: 6px;
+        line-height: 1.6;
+      }
+
+      /* Limits table */
+      .ltbl {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      .ltbl th {
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.7px;
+        color: var(--text3);
+        text-align: left;
+        padding: 0 0 8px;
+        border-bottom: 1px solid var(--border);
+      }
+      .ltbl td {
+        padding: 8px 0;
+        border-bottom: 1px solid var(--border);
+        font-size: 12.5px;
+        vertical-align: top;
+      }
+      .ltbl tr:last-child td {
+        border-bottom: none;
+      }
+      .ltbl td:first-child {
+        font-family: 'JetBrains Mono', monospace;
+        color: var(--cyan);
+        font-size: 11.5px;
+        padding-right: 20px;
+        white-space: nowrap;
+      }
+      .ltbl td:nth-child(2) {
+        font-family: 'JetBrains Mono', monospace;
+        color: var(--yellow);
+        padding-right: 20px;
+      }
+      .ltbl td:last-child {
+        color: var(--text2);
+      }
+
+      /* WS cards */
+      .wsc {
+        background: var(--bg2);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        margin-bottom: 6px;
+        overflow: hidden;
+      }
+      .wsh {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 14px;
+        cursor: pointer;
+      }
+      .wst {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
+        font-weight: 600;
+        padding: 2px 8px;
+        border-radius: 4px;
+      }
+      .wsd {
+        font-size: 11.5px;
+        color: var(--text3);
+        flex: 1;
+      }
+      .wsb {
+        display: none;
+        padding: 0 14px 14px;
+        border-top: 1px solid var(--border);
+      }
+      .wsc.open .wsb {
+        display: block;
+      }
+      .wsc.open .chevron {
+        transform: rotate(90deg);
+      }
+      .wsdesc {
+        color: var(--text2);
+        font-size: 12.5px;
+        padding: 10px 0 8px;
+        line-height: 1.6;
+      }
+      .wsdesc strong {
+        color: var(--text);
+      }
+      .wsdesc code {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px;
+        background: var(--bg3);
+        padding: 1px 4px;
+        border-radius: 3px;
+        color: var(--accent);
+      }
+
+      ::-webkit-scrollbar {
+        width: 5px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: var(--border2);
+        border-radius: 3px;
+      }
+
+      @media (max-width: 768px) {
+        .rail,
+        #sidebar {
+          display: none;
+        }
+        #main {
+          padding: 16px;
+        }
+        .g2,
+        .ov-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Rail -->
+    <div class="rail">
+      <a class="rail-icon active" href="#" title="API Docs">
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path
+            d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+          />
+          <polyline points="14 2 14 8 20 8" />
+          <line x1="16" y1="13" x2="8" y2="13" />
+          <line x1="16" y1="17" x2="8" y2="17" />
+          <line x1="10" y1="9" x2="8" y2="9" />
+        </svg>
+      </a>
+      <div class="rail-sep"></div>
+      <a
+        class="rail-icon"
+        href="/api-docs/openapi.json"
+        target="_blank"
+        title="Raw OpenAPI JSON"
+      >
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <polyline points="16 18 22 12 16 6" />
+          <polyline points="8 6 2 12 8 18" />
+        </svg>
+      </a>
+    </div>
+
+    <!-- Sidebar -->
+    <nav id="sidebar">
+      <div class="sb-top">
+        <h1>API Reference</h1>
+        <div class="ver" id="sb-ver">loading…</div>
+      </div>
+      <div id="sb-nav"></div>
+    </nav>
+
+    <!-- Content -->
+    <div id="content">
+      <div class="topbar">
+        <span class="tb-title" id="tb-title">PSDK Online Server</span>
+        <span class="tb-tag" id="tb-tag">OpenAPI 3.0</span>
+        <select class="tb-select" id="srv-sel" title="Server"></select>
+      </div>
+      <div id="main">
+        <div id="loading">
+          <div class="spinner"></div>
+          <span>Loading API spec…</span>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // ── Constants ──────────────────────────────────────────────────────────
+      const TAG_META = {
+        System: { dot: '#9498c4', icon: '' },
+        Auth: { dot: '#4ade80', icon: '' },
+        Friends: { dot: '#f472b6', icon: '' },
+        GTS: { dot: '#fbbf24', icon: '' },
+        'Mystery Gift': { dot: '#fb923c', icon: '' },
+        'Mystery Gift (Admin)': { dot: '#f87171', icon: '' },
+        Telemetry: { dot: '#22d3ee', icon: '' },
+        WebSocket: { dot: '#8b5cf6', icon: '' },
+      };
+
+      // ── Helpers ────────────────────────────────────────────────────────────
+      const esc = (s) =>
+        String(s ?? '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;');
+
+      function resolveRef(obj, spec) {
+        if (!obj?.$ref) return obj;
+        const parts = obj.$ref.replace('#/', '').split('/');
+        let cur = spec;
+        for (const p of parts) cur = cur?.[p];
+        return cur ?? obj;
+      }
+
+      function resolveSchema(schema, spec) {
+        if (!schema) return {};
+        const s = resolveRef(schema, spec);
+        if (s.allOf) {
+          return s.allOf.reduce((acc, sub) => {
+            const r = resolveSchema(sub, spec);
+            return {
+              ...acc,
+              properties: {
+                ...(acc.properties || {}),
+                ...(r.properties || {}),
+              },
+              required: [...(acc.required || []), ...(r.required || [])],
+            };
+          }, {});
+        }
+        return s;
+      }
+
+      function schemaType(schema, spec) {
+        if (!schema) return '?';
+        const s = resolveRef(schema, spec);
+        if (s.$ref) return s.$ref.split('/').pop();
+        if (s.oneOf) return s.oneOf.map((x) => schemaType(x, spec)).join(' | ');
+        if (s.allOf) return 'object';
+        if (s.type === 'array') return `${schemaType(s.items, spec)}[]`;
+        return s.type || 'object';
+      }
+
+      function colorJson(json) {
+        return json
+          .replace(/("(?:[^"\\]|\\.)*")\s*:/g, `<span class="cn">$1</span>:`)
+          .replace(/:\s*("(?:[^"\\]|\\.)*")/g, `: <span class="cs">$1</span>`)
+          .replace(/:\s*(true|false|null)/g, `: <span class="ck">$1</span>`)
+          .replace(/:\s*(-?\d+\.?\d*)/g, `: <span class="cs">$1</span>`);
+      }
+
+      function md(text) {
+        if (!text) return '';
+        return esc(text)
+          .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+          .replace(/`([^`]+)`/g, '<span class="ic">$1</span>')
+          .replace(/\n\n/g, '<br><br>')
+          .replace(/\n- /g, '<br>• ');
+      }
+
+      function statusClass(c) {
+        return c < 300 ? 's2' : c < 500 ? 's4' : 's5';
+      }
+
+      const SVG_CHEVRON = `<svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>`;
+
+      // ── Auth chips ─────────────────────────────────────────────────────────
+      function authChips(op) {
+        const sec = op.security;
+        if (sec && sec.length === 0)
+          return `<div class="auth-row"><span class="achip c-pub">PUBLIC — no auth required</span></div>`;
+        const flat = (sec ?? [{}]).flatMap(Object.keys);
+        const chips = [];
+        if (!sec || flat.includes('ApiKey'))
+          chips.push(`<span class="achip c-key">x-api-key</span>`);
+        if (flat.includes('PlayerId'))
+          chips.push(`<span class="achip c-pid">x-player-id</span>`);
+        return chips.length
+          ? `<div class="auth-row">${chips.join('')}</div>`
+          : '';
+      }
+
+      // ── Parameters table ───────────────────────────────────────────────────
+      function renderParams(params, spec) {
+        if (!params?.length) return '';
+        const rows = params
+          .map((p) => {
+            const s = resolveRef(p.schema || {}, spec);
+            const type = schemaType(p.schema, spec);
+            const defStr =
+              s.default !== undefined
+                ? ` <span style="color:var(--text3)">(default: ${esc(s.default)})</span>`
+                : '';
+            const enumStr = s.enum
+              ? `<br><span style="color:var(--text3)">enum: ${s.enum.map(esc).join(', ')}</span>`
+              : '';
+            return `<tr>
+      <td class="pn">${esc(p.name)}</td>
+      <td class="pt">${esc(type)}</td>
+      <td class="pr">${p.required ? '✓' : ''}</td>
+      <td class="pd">${esc(p.description || '')}${defStr}${enumStr}</td>
+    </tr>`;
+          })
+          .join('');
+        return `<div class="blk">Parameters</div>
+  <table class="ptbl">
+    <thead><tr><th>Name</th><th>Type</th><th>Req</th><th>Description</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+      }
+
+      // ── Request body ──────────────────────────────────────────────────────
+      function renderBody(op, spec) {
+        if (!op.requestBody) return '';
+        const schema = op.requestBody.content?.['application/json']?.schema;
+        if (!schema) return '';
+        const resolved = resolveSchema(schema, spec);
+        const props = resolved.properties || {};
+        const req = resolved.required || [];
+        const keys = Object.keys(props);
+        if (!keys.length) {
+          return `<div class="blk">Request body</div>
+    <div class="cb cc">${esc(resolved.description || 'object')}</div>`;
+        }
+        const rows = keys
+          .map((k) => {
+            const p = resolveRef(props[k], spec);
+            const type = schemaType(props[k], spec);
+            const defStr =
+              p.default !== undefined
+                ? ` <span style="color:var(--text3)">(default: ${esc(p.default)})</span>`
+                : '';
+            const enumStr = p.enum
+              ? `<br><span style="color:var(--text3)">enum: ${p.enum.map(esc).join(', ')}</span>`
+              : '';
+            return `<tr>
+      <td class="pn">${esc(k)}</td>
+      <td class="pt">${esc(type)}</td>
+      <td class="pr">${req.includes(k) ? '✓' : ''}</td>
+      <td class="pd">${esc(p.description || '')}${defStr}${enumStr}</td>
+    </tr>`;
+          })
+          .join('');
+        const desc = resolved.description
+          ? `<div class="rdesc" style="margin-top:8px">${md(resolved.description)}</div>`
+          : '';
+        return `<div class="blk">Request body</div>
+  ${desc}
+  <table class="ptbl">
+    <thead><tr><th>Field</th><th>Type</th><th>Req</th><th>Notes</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+      }
+
+      // ── Responses ──────────────────────────────────────────────────────────
+      function renderResponses(op, spec) {
+        if (!op.responses) return '';
+        const rows = Object.entries(op.responses)
+          .map(([code, raw]) => {
+            const r = resolveRef(raw, spec);
+            let extra = '';
+            const exs = r.content?.['application/json']?.examples;
+            const ex = r.content?.['application/json']?.example;
+            if (exs) {
+              const first = Object.values(exs)[0];
+              if (first?.value)
+                extra = ` <code>${esc(JSON.stringify(first.value))}</code>`;
+            } else if (ex) {
+              extra = ` <code>${esc(JSON.stringify(ex))}</code>`;
+            }
+            const c = parseInt(code);
+            return `<div class="rrow">
+      <span class="sc ${statusClass(c)}">${code}</span>
+      <span class="rt">${esc(r.description || '')}${extra}</span>
+    </div>`;
+          })
+          .join('');
+        return `<div class="blk">Responses</div><div class="resps">${rows}</div>`;
+      }
+
+      // ── Single operation ───────────────────────────────────────────────────
+      function renderOp(method, path, op, spec) {
+        const mLabel = method.toUpperCase();
+        const pathFmt = esc(path)
+          .replace(/:([a-zA-Z_]+)/g, '<span class="pp">:$1</span>')
+          .replace(/\{([^}]+)\}/g, '<span class="pp">{$1}</span>');
+
+        return `
+  <div class="route-card" onclick="toggle(this)">
+    <div class="route-hdr">
+      <span class="mpill m-${mLabel}">${mLabel}</span>
+      <span class="rpath">${pathFmt}</span>
+      <span class="rsummary">${esc(op.summary || '')}</span>
+      ${SVG_CHEVRON}
+    </div>
+    <div class="route-body">
+      ${authChips(op)}
+      ${op.description ? `<div class="rdesc">${md(op.description)}</div>` : ''}
+      ${renderParams(op.parameters, spec)}
+      ${renderBody(op, spec)}
+      ${renderResponses(op, spec)}
+    </div>
+  </div>`;
+      }
+
+      // ── WebSocket section ──────────────────────────────────────────────────
+      function renderWs(op) {
+        if (!op) return '';
+        const desc = op.description || '';
+
+        // Connection block (text before first ###)
+        const firstHash = desc.indexOf('###');
+        const connText =
+          firstHash > 0 ? desc.substring(0, firstHash).trim() : '';
+        let connHtml = '';
+        if (connText) {
+          const urlM = connText.match(/`(ws:\/\/[^\`]+)`/);
+          if (urlM) {
+            connHtml = `<div class="ov-card" style="margin-bottom:14px">
+        <div class="blk" style="margin:0 0 8px">Connection URL</div>
+        <div class="cb">${esc(urlM[1])}</div>
+      </div>`;
+          }
+          // Param table from markdown table
+          const tableM = connText.match(/\| Param[\s\S]*?(?=\n\n|$)/);
+          if (tableM) {
+            const tRows = tableM[0]
+              .split('\n')
+              .filter((l) => l.startsWith('|') && !l.includes('---'));
+            const dataRows = tRows.slice(1);
+            if (dataRows.length) {
+              const tHtml = dataRows
+                .map((r) => {
+                  const c = r
+                    .split('|')
+                    .slice(1, -1)
+                    .map((x) => x.trim());
+                  if (c.length < 3) return '';
+                  return `<tr><td class="pn">${esc(c[0])}</td><td class="pr">${esc(c[1])}</td><td class="pd">${md(c[2])}</td></tr>`;
+                })
+                .join('');
+              connHtml += `<div class="ov-card" style="margin-bottom:14px">
+          <table class="ptbl"><thead><tr><th>Param</th><th>Req</th><th>Description</th></tr></thead>
+          <tbody>${tHtml}</tbody></table>
+        </div>`;
+            }
+          }
+        }
+
+        // Parse ### blocks
+        const re =
+          /###\s+[`"]?([A-Z_/ ]+)[`"]?\s*\*\(([^)]+)\)\*\s*([\s\S]*?)(?=\n###|$)/g;
+        let m,
+          cards = '';
+        while ((m = re.exec(desc)) !== null) {
+          const type = m[1].trim();
+          const dir = m[2].trim();
+          const body = m[3].trim();
+
+          const codeM = body.match(/```(?:json)?\n([\s\S]*?)```/g);
+          const textPart = codeM
+            ? body.substring(0, body.indexOf('```')).trim()
+            : body;
+
+          // Pick colour
+          let bg = 'rgba(108,114,245,.15)',
+            col = '#6c72f5';
+          if (dir.includes('server →') && !dir.includes('→ server')) {
+            bg = 'rgba(52,211,153,.12)';
+            col = '#4ade80';
+          }
+          if (type.match(/DECLINE|CANCEL/)) {
+            bg = 'rgba(248,113,113,.12)';
+            col = '#f87171';
+          }
+          if (type.match(/COMPLETE|ACCEPT/)) {
+            bg = 'rgba(52,211,153,.12)';
+            col = '#4ade80';
+          }
+          if (type.match(/STATE|CONFIRM/)) {
+            bg = 'rgba(34,211,238,.12)';
+            col = '#22d3ee';
+          }
+          if (type.match(/ACTION|OFFER/)) {
+            bg = 'rgba(251,191,36,.12)';
+            col = '#fbbf24';
+          }
+          if (type.match(/PING|PONG|ERROR/)) {
+            bg = 'rgba(92,96,144,.2)';
+            col = '#9498c4';
+          }
+
+          let codesHtml = '';
+          if (codeM) {
+            codesHtml = codeM
+              .map((block) => {
+                const inner = block
+                  .replace(/```(?:json)?\n/, '')
+                  .replace(/```$/, '')
+                  .trim();
+                try {
+                  return `<div class="cb">${colorJson(JSON.stringify(JSON.parse(inner), null, 2))}</div>`;
+                } catch {
+                  return `<div class="cb">${esc(inner)}</div>`;
+                }
+              })
+              .join('');
+          }
+
+          const descHtml = textPart
+            .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+            .replace(/`([^`]+)`/g, '<code>$1</code>')
+            .replace(/\n/g, ' ');
+
+          cards += `
+    <div class="wsc" onclick="toggleWs(this)">
+      <div class="wsh">
+        <span class="wst" style="background:${bg};color:${col}">${esc(type)}</span>
+        <span class="wsd">${esc(dir)}</span>
+        <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:14px;height:14px;flex-shrink:0;color:var(--text3);transition:transform .2s"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>
+      <div class="wsb">
+        ${descHtml ? `<div class="wsdesc">${descHtml}</div>` : ''}
+        ${codesHtml}
+      </div>
+    </div>`;
+        }
+
+        return connHtml + (cards || `<div class="rdesc">${md(desc)}</div>`);
+      }
+
+      // ── Sidebar ────────────────────────────────────────────────────────────
+      function buildSidebar(spec) {
+        const usedTags = new Set();
+        for (const ops of Object.values(spec.paths || {}))
+          for (const op of Object.values(ops))
+            (op.tags || []).forEach((t) => usedTags.add(t));
+
+        let html = `
+  <div class="sb-group">
+    <div class="sb-label">Overview</div>
+    <a href="#overview"        class="nav-item"><span class="nav-dot" style="background:var(--accent)"></span>Introduction</a>
+    <a href="#authentication"  class="nav-item"><span class="nav-dot" style="background:var(--yellow)"></span>Authentication</a>
+    <a href="#limits"          class="nav-item"><span class="nav-dot" style="background:var(--cyan)"></span>Server limits</a>
+  </div>
+  <div class="sb-group">
+    <div class="sb-label">HTTP Routes</div>`;
+
+        const order = (spec.tags || [])
+          .map((t) => t.name)
+          .filter((t) => t !== 'WebSocket');
+        [...usedTags]
+          .filter((t) => !order.includes(t) && t !== 'WebSocket')
+          .forEach((t) => order.push(t));
+        order.forEach((t) => {
+          if (!usedTags.has(t)) return;
+          const m = TAG_META[t] || { dot: '#9498c4' };
+          const anchor = 'tag-' + t.toLowerCase().replace(/[^a-z0-9]/g, '-');
+          html += `<a href="#${anchor}" class="nav-item"><span class="nav-dot" style="background:${m.dot}"></span>${esc(t)}</a>`;
+        });
+
+        html += `</div>
+  <div class="sb-group">
+    <div class="sb-label">WebSocket</div>
+    <a href="#tag-websocket" class="nav-item"><span class="nav-dot" style="background:var(--accent2)"></span>Messages</a>
+  </div>`;
+
+        document.getElementById('sb-nav').innerHTML = html;
+      }
+
+      // ── Main render ────────────────────────────────────────────────────────
+      function render(spec) {
+        document.getElementById('tb-title').textContent =
+          spec.info?.title || 'API Docs';
+        document.getElementById('tb-tag').textContent =
+          `OpenAPI ${spec.openapi || '3.0'}`;
+        document.getElementById('sb-ver').textContent =
+          `v${spec.info?.version || '1.0.0'}`;
+
+        // Server select
+        const sel = document.getElementById('srv-sel');
+        (spec.servers || []).forEach((s) => {
+          const o = document.createElement('option');
+          o.value = s.url;
+          o.textContent = `${s.url}${s.description ? ' — ' + s.description : ''}`;
+          sel.appendChild(o);
+        });
+
+        buildSidebar(spec);
+
+        // Group by tag
+        const tagMap = {};
+        for (const [path, pathItem] of Object.entries(spec.paths || {})) {
+          for (const [method, op] of Object.entries(pathItem)) {
+            if (
+              !['get', 'post', 'put', 'patch', 'delete', 'head'].includes(
+                method,
+              )
+            )
+              continue;
+            (op.tags || ['Other']).forEach((tag) => {
+              (tagMap[tag] = tagMap[tag] || []).push({ path, method, op });
+            });
+          }
+        }
+
+        let html = '';
+
+        // Overview
+        const rawDesc = spec.info?.description || '';
+        const firstPara = rawDesc
+          .split('\n\n')[0]
+          .replace(/^#+\s*/gm, '')
+          .replace(/\*\*([^*]+)\*\*/g, '$1')
+          .replace(/`([^`]+)`/g, '$1')
+          .trim();
+        html += `<div class="section" id="overview">
+    <div class="section-head"><div class="section-title">${esc(spec.info?.title || 'API')}</div></div>
+    <div class="section-desc">${esc(firstPara)}</div>
+  </div>`;
+
+        // ── Authentication
+        const schemes = Object.entries(spec.components?.securitySchemes || {});
+        if (schemes.length) {
+          html += `<div class="section" id="authentication">
+      <div class="section-head"><div class="section-title">Authentication</div></div>
+      <div class="section-desc">Required headers for API access</div>
+      <div class="ov-grid">`;
+          schemes.forEach(([name, s]) => {
+            html += `<div class="ov-card">
+        <div class="ov-label">${esc(name)}</div>
+        <span class="ic">${esc(s.in || 'header')}: ${esc(s.name || name)}</span>
+        <p>${esc(s.description || '')}</p>
+      </div>`;
+          });
+          html += `</div></div>`;
+        }
+
+        // ── Server limits (parse markdown table from description)
+        const descText = spec.info?.description || '';
+        const tableM = descText.match(/\| Variable[\s\S]*?(?=\n\n|$)/);
+        if (tableM) {
+          const tRows = tableM[0]
+            .split('\n')
+            .filter((l) => l.startsWith('|') && !l.includes('---'));
+          const data = tRows
+            .slice(1)
+            .map((r) =>
+              r
+                .split('|')
+                .slice(1, -1)
+                .map((c) => c.trim()),
+            )
+            .filter((c) => c.length >= 3);
+          if (data.length) {
+            html += `<div class="section" id="limits">
+        <div class="section-head"><div class="section-title">Server Limits</div></div>
+        <div class="section-desc">Configurable via environment variables</div>
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px 18px;">
+          <table class="ltbl">
+            <thead><tr><th>Variable</th><th>Default</th><th>Description</th></tr></thead>
+            <tbody>${data.map((c) => `<tr><td>${esc(c[0])}</td><td>${esc(c[1])}</td><td>${esc(c[2])}</td></tr>`).join('')}</tbody>
+          </table>
+        </div>
+      </div>`;
+          }
+        }
+
+        // ── Tag sections
+        const tagOrder = (spec.tags || [])
+          .map((t) => t.name)
+          .filter((t) => t !== 'WebSocket');
+        Object.keys(tagMap)
+          .filter((t) => !tagOrder.includes(t) && t !== 'WebSocket')
+          .forEach((t) => tagOrder.push(t));
+
+        tagOrder.forEach((tag) => {
+          const ops = tagMap[tag];
+          if (!ops?.length) return;
+          const meta = TAG_META[tag] || { dot: '#9498c4', icon: '•' };
+          const anchor = 'tag-' + tag.toLowerCase().replace(/[^a-z0-9]/g, '-');
+          const tagDef = (spec.tags || []).find((t) => t.name === tag);
+
+          html += `<div class="section" id="${anchor}">
+      <div class="section-head">
+        <span class="section-icon">${meta.icon}</span>
+        <div class="section-title">${esc(tag)}</div>
+      </div>
+      <div class="section-desc">${esc(tagDef?.description || '')}</div>`;
+          ops.forEach(({ path, method, op }) => {
+            html += renderOp(method, path, op, spec);
+          });
+          html += `</div>`;
+        });
+
+        // ── WebSocket
+        const wsOp = spec.paths?.['/ws']?.get;
+        if (wsOp) {
+          html += `<div class="section" id="tag-websocket">
+      <div class="section-head">
+        <div class="section-title">WebSocket</div>
+      </div>
+      <div class="section-desc">${esc(wsOp.summary || '')}</div>
+      ${renderWs(wsOp)}
+    </div>`;
+        }
+
+        document.getElementById('main').innerHTML = html;
+
+        // Active nav on scroll
+        const secs = document.querySelectorAll('.section');
+        const links = document.querySelectorAll('#sb-nav .nav-item');
+        new IntersectionObserver(
+          (entries) => {
+            entries.forEach((e) => {
+              if (e.isIntersecting)
+                links.forEach((a) =>
+                  a.classList.toggle(
+                    'active',
+                    a.getAttribute('href') === '#' + e.target.id,
+                  ),
+                );
+            });
+          },
+          { threshold: 0.25 },
+        ).observe = (() => {
+          const orig = IntersectionObserver.prototype.observe;
+          // just use standard observer
+          const obs = new IntersectionObserver(
+            (entries) => {
+              entries.forEach((e) => {
+                if (e.isIntersecting)
+                  links.forEach((a) =>
+                    a.classList.toggle(
+                      'active',
+                      a.getAttribute('href') === '#' + e.target.id,
+                    ),
+                  );
+              });
+            },
+            { threshold: 0.25, rootMargin: '-10% 0px -80% 0px' },
+          );
+          secs.forEach((s) => obs.observe(s));
+        })();
+      }
+
+      // ── Toggle handlers ────────────────────────────────────────────────────
+      function toggle(card) {
+        card.classList.toggle('open');
+      }
+      function toggleWs(card) {
+        card.classList.toggle('open');
+      }
+
+      // ── Boot ───────────────────────────────────────────────────────────────
+      (async () => {
+        try {
+          const res = await fetch('/api-docs/openapi.json');
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          render(await res.json());
+        } catch (e) {
+          document.getElementById('main').innerHTML =
+            `<div class="err-box">⚠️ Could not load <code>/api-docs/openapi.json</code>: ${esc(e.message)}. Make sure the server is running.</div>`;
+        }
+      })();
+    </script>
+  </body>
+</html>

@@ -1,26 +1,37 @@
+# Use this file when you have an existing MongoDB instance (local, Atlas, or remote VM).
+# Set DB_HOST in your .env to point to that instance.
+# Set DB_USER and DB_PSWD if authentication is required.
+
 services:
-  online:
-    container_name: online
+
+  server:
+    container_name: psdk_online_server
     build:
       context: .
-      dockerfile: Dockerfile_Server
-    networks:
-      - online_server_network
+      dockerfile: Dockerfile
     ports:
-      - "8181:8181"
+      - "${PORT:-3000}:${PORT:-3000}"
     environment:
-      - DB_NAME=${DB_NAME}
-      - DB_HOST=${DB_HOST}
-      - DB_PORT=${DB_PORT}
-      - DB_USER=${DB_USER}
-      - DB_PSWD=${DB_PSWD}
-      - SERVER_PORT=${SERVER_PORT}
-      - DAYS_PLAYER_INACTIVE=${DAYS_PLAYER_INACTIVE}
-      - DAYS_FRIEND_INACTIVE_REQUEST=${DAYS_FRIEND_INACTIVE_REQUEST}
-      - MAX_LEVEL=${MAX_LEVEL}
+      - NODE_ENV=${NODE_ENV:-production}
+      - PORT=${PORT:-3000}
+      # MongoDB connection — assembled from individual variables in src/config/env.ts
+      - DB_NAME=${DB_NAME:-psdk_online}
+      - DB_HOST=${DB_HOST:-localhost}
+      - DB_PORT=${DB_PORT:-27017}
+      - DB_USER=${DB_USER:-}
+      - DB_PSWD=${DB_PSWD:-}
+      # Auth
+      - API_KEY=${API_KEY}
+      - ADMIN_KEY=${ADMIN_KEY}
+      # GTS
+      - GTS_SPECIES_BLACKLIST=${GTS_SPECIES_BLACKLIST:-}
+      - GTS_EXPIRY_DAYS=${GTS_EXPIRY_DAYS:-30}
+      # PokeBank
+      - POKEBANK_MAX_BOXES=${POKEBANK_MAX_BOXES:-8}
+      - POKEBANK_BOX_SIZE=${POKEBANK_BOX_SIZE:-30}
     restart: on-failure:5
     volumes:
-      - online_data:/usr/src/app
+      - server_logs:/usr/src/app/logs
 
 volumes:
-  online_data:
+  server_logs:
