@@ -65,7 +65,11 @@ function makeRes() {
       res.statusCode = s; if (h) Object.assign(res.headers, h);
     }),
     end: vi.fn((b?: string) => { res.body = b ?? ''; }),
-  } as unknown as ServerResponse & { statusCode: number; body: string };
+  } as unknown as ServerResponse & {
+    statusCode: number;
+    body: string;
+    headers: Record<string, string | number>;
+  };
   return res;
 }
 

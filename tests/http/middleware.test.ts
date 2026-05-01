@@ -10,9 +10,18 @@ import { EventEmitter } from 'node:events';
 import {
   apiKeyMiddleware,
   extractPlayer,
+  maintenanceModeMiddleware,
   requireAdmin,
   verifyWsApiKey,
 } from '../../src/http/middleware';
+
+const mockGetStatus = vi.fn();
+
+vi.mock('../../src/services/MaintenanceService', () => ({
+  maintenanceService: {
+    getStatus: (...a: any[]) => mockGetStatus(...a),
+  },
+}));
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -41,6 +50,11 @@ function makeRes() {
 // ── apiKeyMiddleware ──────────────────────────────────────────────────────────
 
 describe('apiKeyMiddleware', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetStatus.mockResolvedValue({ enabled: false, message: '', endAt: null });
+  });
+
   it('allows requests with the correct x-api-key', async () => {
     const req = makeReq('/api/v1/gts/deposit', { 'x-api-key': 'test-api-key' });
     const res = makeRes();
@@ -89,6 +103,15 @@ describe('apiKeyMiddleware', () => {
     expect(result).toBe(true);
   });
 
+  it('allows maintenance admin route with valid admin key', async () => {
+    const req = makeReq('/api/v1/maintenance/admin', {
+      'x-admin-key': 'test-admin-key',
+    });
+    const res = makeRes();
+    const result = await apiKeyMiddleware(req, res);
+    expect(result).toBe(true);
+  });
+
   it('falls through to API_KEY check for admin route with wrong admin key', async () => {
     const req = makeReq('/api/v1/mystery-gift/admin/create', {
       'x-admin-key': 'bad-admin-key',
@@ -97,6 +120,49 @@ describe('apiKeyMiddleware', () => {
     const result = await apiKeyMiddleware(req, res);
     expect(result).toBe(false);
     expect(res.statusCode).toBe(401);
+  });
+});
+
+describe('maintenanceModeMiddleware', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('allows player routes when maintenance is disabled', async () => {
+    mockGetStatus.mockResolvedValue({ enabled: false, message: '', endAt: null });
+    const req = makeReq('/api/v1/gts/deposit', { 'x-api-key': 'test-api-key' });
+    const res = makeRes();
+    const result = await maintenanceModeMiddleware(req, res);
+    expect(result).toBe(true);
+  });
+
+  it('blocks player routes with 503 when maintenance is enabled', async () => {
+    mockGetStatus.mockResolvedValue({
+      enabled: true,
+      message: 'Maintenance in progress',
+      endAt: '2026-04-28T20:00:00.000Z',
+    });
+    const req = makeReq('/api/v1/gts/deposit', { 'x-api-key': 'test-api-key' });
+    const res = makeRes();
+    const result = await maintenanceModeMiddleware(req, res);
+    expect(result).toBe(false);
+    expect(res.statusCode).toBe(503);
+    expect(JSON.parse(res.body)).toMatchObject({
+      error: 503,
+      maintenance: { enabled: true },
+    });
+  });
+
+  it('keeps maintenance admin route accessible while maintenance is enabled', async () => {
+    mockGetStatus.mockResolvedValue({
+      enabled: true,
+      message: 'Maintenance in progress',
+      endAt: '2026-04-28T20:00:00.000Z',
+    });
+    const req = makeReq('/api/v1/maintenance/admin', { 'x-admin-key': 'test-admin-key' });
+    const res = makeRes();
+    const result = await maintenanceModeMiddleware(req, res);
+    expect(result).toBe(true);
   });
 });
 

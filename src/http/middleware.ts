@@ -1,6 +1,7 @@
 import { IncomingMessage, ServerResponse } from 'node:http';
 import { ENV } from '../config/env';
 import { sendJson, getHeader } from './router';
+import { maintenanceService } from '../services/MaintenanceService';
 
 // Augment the native type so `playerId` can travel through the request lifecycle.
 declare module 'node:http' {
@@ -40,7 +41,8 @@ export async function apiKeyMiddleware(
   // requireAdmin() inside the route handler will validate the key itself.
   const isAdminRoute =
     pathname.startsWith('/telemetry/') ||
-    pathname.startsWith('/api/v1/mystery-gift/admin');
+    pathname.startsWith('/api/v1/mystery-gift/admin') ||
+    pathname.startsWith('/api/v1/maintenance/admin');
   if (isAdminRoute) {
     const adminKey = getHeader(req, 'x-admin-key');
     if (adminKey && adminKey === ENV.ADMIN_KEY) return true;
@@ -54,6 +56,37 @@ export async function apiKeyMiddleware(
     return false;
   }
   return true;
+}
+
+/**
+ * Blocks player-facing HTTP routes while maintenance mode is enabled.
+ *
+ * @remarks
+ * Admin maintenance routes remain available so the mode can be disabled again.
+ * The public health check and docs are handled outside the router.
+ */
+export async function maintenanceModeMiddleware(
+  req: IncomingMessage,
+  res: ServerResponse,
+): Promise<boolean> {
+  const pathname = (req.url || '/').split('?')[0];
+
+  const isAllowedDuringMaintenance =
+    pathname === '/api/v1/maintenance' ||
+    pathname.startsWith('/api/v1/maintenance/admin') ||
+    pathname === '/telemetry' ||
+    pathname.startsWith('/telemetry/');
+
+  if (isAllowedDuringMaintenance) return true;
+
+  const status = await maintenanceService.getStatus();
+  if (!status.enabled) return true;
+
+  sendJson(res, 503, {
+    error: 503,
+    maintenance: status,
+  });
+  return false;
 }
 
 // ─── Guards ───────────────────────────────────────────────────────────────────

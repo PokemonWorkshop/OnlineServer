@@ -109,6 +109,41 @@ See the **WebSocket** tag below for all message types and payloads.
           },
         },
       },
+      MaintenanceStatus: {
+        type: 'object',
+        required: ['enabled', 'message', 'endAt'],
+        properties: {
+          enabled: { type: 'boolean', example: true },
+          message: {
+            type: 'string',
+            example: 'Server maintenance in progress.',
+          },
+          endAt: {
+            type: 'string',
+            format: 'date-time',
+            nullable: true,
+            example: '2026-04-28T20:00:00.000Z',
+          },
+        },
+      },
+      MaintenanceUpdateBody: {
+        type: 'object',
+        required: ['enabled'],
+        properties: {
+          enabled: { type: 'boolean', example: true },
+          message: {
+            type: 'string',
+            maxLength: 500,
+            example: 'Online services are temporarily unavailable.',
+          },
+          endAt: {
+            type: 'string',
+            format: 'date-time',
+            nullable: true,
+            example: '2026-04-28T20:00:00.000Z',
+          },
+        },
+      },
 
       // ── Player / Auth ─────────────────────────────────────────────────────
       RegisterBody: {
@@ -1673,6 +1708,73 @@ See the **WebSocket** tag below for all message types and payloads.
     },
 
     // ── Telemetry ────────────────────────────────────────────────────────────
+    '/api/v1/maintenance': {
+      get: {
+        tags: ['Maintenance'],
+        summary: 'Read the current maintenance status',
+        security: [{ ApiKey: [] }],
+        description:
+          'Returns the current maintenance flag, warning message, and optional expected end date/time for PSDK clients.',
+        responses: {
+          200: {
+            description: 'Maintenance status payload.',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/MaintenanceStatus' },
+              },
+            },
+          },
+          401: { $ref: '#/components/responses/Unauthorized' },
+        },
+      },
+    },
+    '/api/v1/maintenance/admin': {
+      patch: {
+        tags: ['Maintenance (Admin)'],
+        summary: 'Enable or update maintenance mode',
+        security: [{ AdminKey: [] }],
+        description:
+          'Creates or updates the global maintenance state and broadcasts the new value to connected WebSocket clients.',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/MaintenanceUpdateBody' },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description: 'Updated maintenance status.',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/MaintenanceStatus' },
+              },
+            },
+          },
+          400: { $ref: '#/components/responses/ValidationError' },
+          401: { $ref: '#/components/responses/Unauthorized' },
+        },
+      },
+      delete: {
+        tags: ['Maintenance (Admin)'],
+        summary: 'Disable maintenance mode',
+        security: [{ AdminKey: [] }],
+        description:
+          'Turns maintenance mode off, clears the message and end date, and broadcasts the new value to connected WebSocket clients.',
+        responses: {
+          200: {
+            description: 'Maintenance disabled.',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/MaintenanceStatus' },
+              },
+            },
+          },
+          401: { $ref: '#/components/responses/Unauthorized' },
+        },
+      },
+    },
     '/telemetry/summary': {
       get: {
         tags: ['Telemetry'],
@@ -1901,6 +2003,24 @@ Keepalive probe. The server replies immediately with \`PONG\`.
 
 ### \`PONG\` *(server → client)*
 Keepalive response.
+
+### \`MAINTENANCE_STATUS\` *(client â†’ server or server â†’ client)*
+Use this message to fetch or receive the current maintenance state.
+\`\`\`json
+{ "type": "MAINTENANCE_STATUS" }
+\`\`\`
+The server replies with:
+\`\`\`json
+{
+  "type": "MAINTENANCE_STATUS",
+  "payload": {
+    "enabled": true,
+    "message": "Server maintenance in progress.",
+    "endAt": "2026-04-28T20:00:00.000Z"
+  }
+}
+\`\`\`
+When maintenance mode is active, the same payload is also pushed automatically on connection. Any admin update is broadcast live to connected clients.
 
 ### \`ERROR\` *(server → client)*
 Sent whenever a message cannot be processed.
