@@ -1,4 +1,5 @@
 import { Schema, model, Document, Types } from 'mongoose';
+import { ErrorCode } from '../http/ErrorCode';
 
 // ─── Sub-interfaces ───────────────────────────────────────────────────────────
 
@@ -59,6 +60,11 @@ export interface MysteryGiftData {
   giftId: string; // human-readable identifier, e.g., "gift-abc123"
   title: string;
 
+  csvDetails?: {
+    id: number;
+    line: number;
+  };
+
   // Contents (combinable; all optional but at least one must exist)
   items?: IGiftItem[];
   creatures?: IGiftCreature[];
@@ -87,8 +93,12 @@ export interface MysteryGiftData {
 export interface IMysteryGift extends MysteryGiftData, Document {
   _id: Types.ObjectId;
 
-  /** Checks if playerId can claim this gift, returns { canClaim, reason? } */
-  canBeClaimed(playerId: string): { canClaim: boolean; reason?: string };
+  /** Checks if playerId can claim this gift, returns { canClaim, reason?, errorCode? } */
+  canBeClaimed(playerId: string): {
+    canClaim: boolean;
+    reason?: string;
+    errorCode?: ErrorCode;
+  };
 }
 
 // ─── Schemas ────────────────────────────────────────────────────────────────
@@ -135,6 +145,14 @@ const MysteryGiftSchema = new Schema<IMysteryGift>(
       default: () => `gift-${Math.random().toString(36).substring(2, 10)}`,
     },
     title: { type: String, required: true, trim: true },
+
+    csvDetails: {
+      type: {
+        id: { type: Number, required: true },
+        line: { type: Number, required: true },
+      },
+      default: null,
+    },
 
     items: {
       type: [
@@ -202,18 +220,31 @@ MysteryGiftSchema.pre('save', function (next) {
 MysteryGiftSchema.methods.canBeClaimed = function (playerId: string): {
   canClaim: boolean;
   reason?: string;
+  errorCode?: ErrorCode;
 } {
   const now = new Date();
 
   if (!this.alwaysAvailable) {
     if (this.validFrom && now < this.validFrom)
-      return { canClaim: false, reason: 'This gift is not yet available.' };
+      return {
+        canClaim: false,
+        reason: 'This gift is not yet available.',
+        errorCode: ErrorCode.GIFT_NOT_AVAILABLE,
+      };
     if (this.validTo && now > this.validTo)
-      return { canClaim: false, reason: 'This gift has expired.' };
+      return {
+        canClaim: false,
+        reason: 'This gift has expired.',
+        errorCode: ErrorCode.GIFT_NOT_AVAILABLE,
+      };
   }
 
   if (this.claimedBy.includes(playerId))
-    return { canClaim: false, reason: 'You have already claimed this gift.' };
+    return {
+      canClaim: false,
+      reason: 'You have already claimed this gift.',
+      errorCode: ErrorCode.GIFT_ALREADY_CLAIMED,
+    };
 
   if (
     this.allowedClaimers.length > 0 &&
@@ -222,12 +253,14 @@ MysteryGiftSchema.methods.canBeClaimed = function (playerId: string): {
     return {
       canClaim: false,
       reason: 'You are not allowed to claim this gift.',
+      errorCode: ErrorCode.GIFT_NOT_ELIGIBLE,
     };
 
   if (this.maxClaims !== -1 && this.claimedBy.length >= this.maxClaims)
     return {
       canClaim: false,
       reason: 'This gift is no longer available (limit reached).',
+      errorCode: ErrorCode.GIFT_MAX_CLAIMS_REACHED,
     };
 
   return { canClaim: true };

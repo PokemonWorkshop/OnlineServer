@@ -6,6 +6,7 @@ import {
   IGiftCreature,
   IGiftEgg,
 } from '../models/MysteryGift';
+import { ErrorCode } from '../http/ErrorCode';
 
 // ─── Params ───────────────────────────────────────────────────────────────────
 
@@ -87,6 +88,7 @@ export class MysteryGiftService {
     { code, giftId }: { code?: string; giftId?: string },
   ): Promise<{
     ok: boolean;
+    code?: ErrorCode;
     error?: string;
     gift?: Pick<
       MysteryGiftData,
@@ -94,7 +96,11 @@ export class MysteryGiftService {
     >;
   }> {
     if (!code && !giftId)
-      return { ok: false, error: 'Provide either a code or a giftId.' };
+      return {
+        ok: false,
+        code: ErrorCode.MISSING_REQUIRED_FIELD,
+        error: 'Provide either a code or a giftId.',
+      };
 
     // Lookup: if code, search in type 'code'; otherwise by giftId
     const query = code
@@ -102,10 +108,20 @@ export class MysteryGiftService {
       : { giftId, type: 'internet', isActive: true };
 
     const gift = await MysteryGift.findOne(query);
-    if (!gift) return { ok: false, error: 'Gift not found.' };
+    if (!gift) {
+      const errorCode = code
+        ? ErrorCode.GIFT_INVALID_CODE
+        : ErrorCode.GIFT_NOT_FOUND;
+      return { ok: false, code: errorCode, error: 'Gift not found.' };
+    }
 
-    const { canClaim, reason } = gift.canBeClaimed(playerId);
-    if (!canClaim) return { ok: false, error: reason };
+    const { canClaim, reason, errorCode } = gift.canBeClaimed(playerId);
+    if (!canClaim)
+      return {
+        ok: false,
+        code: errorCode ?? ErrorCode.GIFT_NOT_AVAILABLE,
+        error: reason,
+      };
 
     // Atomic push — avoids race conditions if two players claim simultaneously
     await MysteryGift.findByIdAndUpdate(gift._id, {
@@ -136,7 +152,8 @@ export class MysteryGiftService {
     if (params.type === 'code' && params.code) {
       const normalizedCode = params.code.toUpperCase();
       const existing = await MysteryGift.exists({ code: normalizedCode });
-      if (existing) throw new Error(`A gift with code "${normalizedCode}" already exists.`);
+      if (existing)
+        throw new Error(`A gift with code "${normalizedCode}" already exists.`);
     }
 
     const gift = await MysteryGift.create({
@@ -147,12 +164,19 @@ export class MysteryGiftService {
   }
 
   /** Deactivates a gift (soft delete) without removing it from DB. */
-  async deactivate(giftId: string): Promise<{ ok: boolean; error?: string }> {
+  async deactivate(
+    giftId: string,
+  ): Promise<{ ok: boolean; code?: ErrorCode; error?: string }> {
     const result = await MysteryGift.findOneAndUpdate(
       { giftId },
       { isActive: false },
     );
-    if (!result) return { ok: false, error: 'Gift not found.' };
+    if (!result)
+      return {
+        ok: false,
+        code: ErrorCode.GIFT_NOT_FOUND,
+        error: 'Gift not found.',
+      };
     return { ok: true };
   }
 

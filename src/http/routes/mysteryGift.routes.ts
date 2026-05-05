@@ -1,6 +1,13 @@
-import { Router, sendJson, readBody } from '../router';
+import {
+  Router,
+  sendJson,
+  sendErrorResponse,
+  readBody,
+  sendServiceResponse,
+} from '../router';
 import { extractPlayer, requireAdmin } from '../middleware';
 import { mysteryGiftService } from '../../services/MysteryGiftService';
+import { ErrorCode, createErrorResponse } from '../ErrorCode';
 import { z } from 'zod';
 
 // ─── Zod Schemas ─────────────────────────────────────────────────────────────
@@ -114,21 +121,28 @@ export function registerMysteryGiftRoutes(router: Router): void {
     try {
       body = await readBody(req);
     } catch {
-      sendJson(res, 400, { error: 'Invalid JSON' });
+      sendErrorResponse(
+        res,
+        createErrorResponse(ErrorCode.INVALID_JSON, 'Invalid JSON'),
+      );
       return;
     }
 
     const parsed = ClaimSchema.safeParse(body);
     if (!parsed.success) {
-      sendJson(res, 400, {
-        error: 'Invalid data',
-        details: z.treeifyError(parsed.error),
-      });
+      sendErrorResponse(
+        res,
+        createErrorResponse(
+          ErrorCode.INVALID_DATA,
+          'Invalid data',
+          z.treeifyError(parsed.error),
+        ),
+      );
       return;
     }
 
     const result = await mysteryGiftService.claim(req.playerId!, parsed.data);
-    sendJson(res, result.ok ? 200 : 400, result);
+    sendServiceResponse(res, result);
   });
 
   /**
@@ -141,16 +155,23 @@ export function registerMysteryGiftRoutes(router: Router): void {
     try {
       body = await readBody(req);
     } catch {
-      sendJson(res, 400, { error: 'Invalid JSON' });
+      sendErrorResponse(
+        res,
+        createErrorResponse(ErrorCode.INVALID_JSON, 'Invalid JSON'),
+      );
       return;
     }
 
     const parsed = CreateGiftSchema.safeParse(body);
     if (!parsed.success) {
-      sendJson(res, 400, {
-        error: 'Invalid data',
-        details: parsed.error.flatten(),
-      });
+      sendErrorResponse(
+        res,
+        createErrorResponse(
+          ErrorCode.INVALID_DATA,
+          'Invalid data',
+          parsed.error.flatten(),
+        ),
+      );
       return;
     }
 
@@ -163,9 +184,11 @@ export function registerMysteryGiftRoutes(router: Router): void {
       });
       sendJson(res, 201, gift);
     } catch (err) {
-      sendJson(res, 400, {
-        error: err instanceof Error ? err.message : 'Creation error',
-      });
+      const errorMsg = err instanceof Error ? err.message : 'Creation error';
+      const code = errorMsg.includes('already exists')
+        ? ErrorCode.GIFT_ALREADY_CODE
+        : ErrorCode.INVALID_REQUEST_BODY;
+      sendErrorResponse(res, createErrorResponse(code, errorMsg));
     }
   });
 
@@ -178,7 +201,7 @@ export function registerMysteryGiftRoutes(router: Router): void {
     async (req, res, params) => {
       if (!requireAdmin(req, res)) return;
       const result = await mysteryGiftService.deactivate(params.giftId);
-      sendJson(res, result.ok ? 200 : 404, result);
+      sendServiceResponse(res, result);
     },
   );
 

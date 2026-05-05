@@ -1,6 +1,14 @@
-import { Router, sendJson, readBody, getQuery } from '../router';
+import {
+  Router,
+  sendJson,
+  sendErrorResponse,
+  readBody,
+  getQuery,
+  sendServiceResponse,
+} from '../router';
 import { extractPlayer } from '../middleware';
 import { gtsService } from '../../services/GtsService';
+import { ErrorCode, createErrorResponse } from '../ErrorCode';
 
 export function registerGtsRoutes(router: Router): void {
   /**
@@ -24,17 +32,30 @@ export function registerGtsRoutes(router: Router): void {
     try {
       body = await readBody(req);
     } catch {
-      sendJson(res, 400, { error: 'Invalid JSON' });
+      sendErrorResponse(
+        res,
+        createErrorResponse(ErrorCode.INVALID_JSON, 'Invalid JSON'),
+      );
       return;
     }
 
     if (!body.creature || !body.wanted?.speciesId) {
-      sendJson(res, 400, { error: 'creature and wanted.speciesId are required' });
+      sendErrorResponse(
+        res,
+        createErrorResponse(
+          ErrorCode.MISSING_REQUIRED_FIELD,
+          'creature and wanted.speciesId are required',
+        ),
+      );
       return;
     }
 
-    const result = await gtsService.deposit(req.playerId!, body.creature, body.wanted);
-    sendJson(res, result.ok ? 201 : 400, result);
+    const result = await gtsService.deposit(
+      req.playerId!,
+      body.creature,
+      body.wanted,
+    );
+    sendServiceResponse(res, result);
   });
 
   /**
@@ -43,14 +64,20 @@ export function registerGtsRoutes(router: Router): void {
    */
   router.get('/api/v1/gts/search', async (req, res) => {
     if (!extractPlayer(req, res)) return;
-    const q         = getQuery(req);
+    const q = getQuery(req);
     const speciesId = q.get('speciesId');
-    const level     = parseInt(q.get('level') || '0');
-    const gender    = parseInt(q.get('gender') || '0');
-    const page      = parseInt(q.get('page') || '0');
+    const level = parseInt(q.get('level') || '0');
+    const gender = parseInt(q.get('gender') || '0');
+    const page = parseInt(q.get('page') || '0');
 
     if (!speciesId || !level || !gender) {
-      sendJson(res, 400, { error: 'Required parameters: speciesId, level, gender' });
+      sendErrorResponse(
+        res,
+        createErrorResponse(
+          ErrorCode.INVALID_PARAMETERS,
+          'Required parameters: speciesId, level, gender',
+        ),
+      );
       return;
     }
 
@@ -72,17 +99,30 @@ export function registerGtsRoutes(router: Router): void {
     try {
       body = await readBody(req);
     } catch {
-      sendJson(res, 400, { error: 'Invalid JSON' });
+      sendErrorResponse(
+        res,
+        createErrorResponse(ErrorCode.INVALID_JSON, 'Invalid JSON'),
+      );
       return;
     }
 
     if (!body.offeredCreature) {
-      sendJson(res, 400, { error: 'offeredCreature is required' });
+      sendErrorResponse(
+        res,
+        createErrorResponse(
+          ErrorCode.MISSING_REQUIRED_FIELD,
+          'offeredCreature is required',
+        ),
+      );
       return;
     }
 
-    const result = await gtsService.trade(req.playerId!, params.depositId, body.offeredCreature);
-    sendJson(res, result.ok ? 200 : 400, result);
+    const result = await gtsService.trade(
+      req.playerId!,
+      params.depositId,
+      body.offeredCreature,
+    );
+    sendServiceResponse(res, result);
   });
 
   /**
@@ -92,7 +132,7 @@ export function registerGtsRoutes(router: Router): void {
   router.delete('/api/v1/gts/deposit', async (req, res) => {
     if (!extractPlayer(req, res)) return;
     const result = await gtsService.withdraw(req.playerId!);
-    sendJson(res, result.ok ? 200 : 404, result);
+    sendServiceResponse(res, result);
   });
 
   /**
@@ -110,12 +150,15 @@ export function registerGtsRoutes(router: Router): void {
    * Claims (removes and returns) a specific pending trade result.
    * Body: (empty)
    */
-  router.post('/api/v1/gts/pending/claim/:pendingResultId', async (req, res, params) => {
-    if (!extractPlayer(req, res)) return;
-    const result = await gtsService.claimPendingResult(
-      req.playerId!,
-      params.pendingResultId,
-    );
-    sendJson(res, result.ok ? 200 : 404, result);
-  });
+  router.post(
+    '/api/v1/gts/pending/claim/:pendingResultId',
+    async (req, res, params) => {
+      if (!extractPlayer(req, res)) return;
+      const result = await gtsService.claimPendingResult(
+        req.playerId!,
+        params.pendingResultId,
+      );
+      sendServiceResponse(res, result);
+    },
+  );
 }

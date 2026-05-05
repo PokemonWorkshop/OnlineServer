@@ -1,6 +1,10 @@
 import { GtsDeposit, GtsDepositData } from '../models/GtsDeposit';
-import { GtsPendingResult, GtsPendingResultData } from '../models/GtsPendingResult';
+import {
+  GtsPendingResult,
+  GtsPendingResultData,
+} from '../models/GtsPendingResult';
 import { ENV } from '../config/env';
+import { ErrorCode } from '../http/ErrorCode';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -50,30 +54,47 @@ export class GtsService {
     playerId: string,
     creature: Record<string, unknown>,
     wanted: WantedParams,
-  ): Promise<{ ok: boolean; depositId?: string; error?: string }> {
+  ): Promise<{
+    ok: boolean;
+    depositId?: string;
+    code?: ErrorCode;
+    error?: string;
+  }> {
     const speciesId = String((creature as any).speciesId ?? '');
 
     if (ENV.GTS_SPECIES_BLACKLIST.includes(speciesId))
-      return { ok: false, error: 'This species cannot be deposited on the GTS' };
+      return {
+        ok: false,
+        code: ErrorCode.GTS_SPECIES_BLACKLISTED,
+        error: 'This species cannot be deposited on the GTS',
+      };
 
     if (ENV.GTS_SPECIES_BLACKLIST.includes(wanted.speciesId))
-      return { ok: false, error: 'This species cannot be requested on the GTS' };
+      return {
+        ok: false,
+        code: ErrorCode.GTS_INVALID_WANTED_SPECIES,
+        error: 'This species cannot be requested on the GTS',
+      };
 
     const existing = await GtsDeposit.findOne({ depositorId: playerId });
     if (existing)
-      return { ok: false, error: 'You already have a creature deposited on the GTS' };
+      return {
+        ok: false,
+        code: ErrorCode.GTS_ALREADY_DEPOSITED,
+        error: 'You already have a creature deposited on the GTS',
+      };
 
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + ENV.GTS_EXPIRY_DAYS);
 
     const deposit = await GtsDeposit.create({
-      depositorId:     playerId,
-      depositorName:   String((creature as any).trainerName ?? playerId),
+      depositorId: playerId,
+      depositorName: String((creature as any).trainerName ?? playerId),
       creature,
       wantedSpeciesId: wanted.speciesId,
-      wantedMinLevel:  wanted.minLevel ?? 1,
-      wantedMaxLevel:  wanted.maxLevel ?? 100,
-      wantedGender:    wanted.gender ?? -1,
+      wantedMinLevel: wanted.minLevel ?? 1,
+      wantedMaxLevel: wanted.maxLevel ?? 100,
+      wantedGender: wanted.gender ?? -1,
       expiresAt,
     });
 
@@ -103,9 +124,9 @@ export class GtsService {
   ): Promise<GtsDepositData[]> {
     return GtsDeposit.find({
       wantedSpeciesId: offeredSpeciesId,
-      wantedMinLevel:  { $lte: offeredLevel },
-      wantedMaxLevel:  { $gte: offeredLevel },
-      $or:             [{ wantedGender: -1 }, { wantedGender: offeredGender }],
+      wantedMinLevel: { $lte: offeredLevel },
+      wantedMaxLevel: { $gte: offeredLevel },
+      $or: [{ wantedGender: -1 }, { wantedGender: offeredGender }],
     })
       .skip(page * limit)
       .limit(limit)
@@ -136,27 +157,56 @@ export class GtsService {
     traderId: string,
     depositId: string,
     offeredCreature: Record<string, unknown>,
-  ): Promise<{ ok: boolean; receivedCreature?: Record<string, unknown>; error?: string }> {
+  ): Promise<{
+    ok: boolean;
+    receivedCreature?: Record<string, unknown>;
+    code?: ErrorCode;
+    error?: string;
+  }> {
     const deposit = await GtsDeposit.findById(depositId);
-    if (!deposit) return { ok: false, error: 'Deposit not found or expired' };
+    if (!deposit)
+      return {
+        ok: false,
+        code: ErrorCode.GTS_DEPOSIT_NOT_FOUND,
+        error: 'Deposit not found or expired',
+      };
     if (deposit.depositorId === traderId)
-      return { ok: false, error: 'Cannot trade with yourself' };
+      return {
+        ok: false,
+        code: ErrorCode.GTS_TRADE_FAILED,
+        error: 'Cannot trade with yourself',
+      };
 
     const offeredSpecies = String((offeredCreature as any).speciesId ?? '');
-    const offeredLevel   = Number((offeredCreature as any).level ?? 0);
-    const offeredGender  = Number((offeredCreature as any).gender ?? -1);
+    const offeredLevel = Number((offeredCreature as any).level ?? 0);
+    const offeredGender = Number((offeredCreature as any).gender ?? -1);
 
     if (offeredSpecies !== deposit.wantedSpeciesId)
-      return { ok: false, error: 'The offered species does not match the request' };
+      return {
+        ok: false,
+        code: ErrorCode.GTS_TRADE_FAILED,
+        error: 'The offered species does not match the request',
+      };
 
-    if (offeredLevel < deposit.wantedMinLevel || offeredLevel > deposit.wantedMaxLevel)
-      return { ok: false, error: 'The offered creature level is outside the requested range' };
+    if (
+      offeredLevel < deposit.wantedMinLevel ||
+      offeredLevel > deposit.wantedMaxLevel
+    )
+      return {
+        ok: false,
+        code: ErrorCode.GTS_TRADE_FAILED,
+        error: 'The offered creature level is outside the requested range',
+      };
 
     if (deposit.wantedGender !== -1 && offeredGender !== deposit.wantedGender)
-      return { ok: false, error: 'The offered creature gender does not match the request' };
+      return {
+        ok: false,
+        code: ErrorCode.GTS_TRADE_FAILED,
+        error: 'The offered creature gender does not match the request',
+      };
 
     const receivedCreature = deposit.creature;
-    const depositorId      = deposit.depositorId;
+    const depositorId = deposit.depositorId;
 
     // Delete the deposit atomically
     await GtsDeposit.findByIdAndDelete(depositId);
@@ -166,9 +216,9 @@ export class GtsService {
     expiresAt.setDate(expiresAt.getDate() + ENV.GTS_EXPIRY_DAYS);
 
     await GtsPendingResult.create({
-      recipientId:      depositorId,
+      recipientId: depositorId,
       receivedCreature: offeredCreature,
-      traderName:       String((offeredCreature as any).trainerName ?? traderId),
+      traderName: String((offeredCreature as any).trainerName ?? traderId),
       expiresAt,
     });
 
@@ -184,9 +234,21 @@ export class GtsService {
    */
   async withdraw(
     playerId: string,
-  ): Promise<{ ok: boolean; creature?: Record<string, unknown>; error?: string }> {
-    const deposit = await GtsDeposit.findOneAndDelete({ depositorId: playerId });
-    if (!deposit) return { ok: false, error: 'No active deposit found' };
+  ): Promise<{
+    ok: boolean;
+    creature?: Record<string, unknown>;
+    code?: ErrorCode;
+    error?: string;
+  }> {
+    const deposit = await GtsDeposit.findOneAndDelete({
+      depositorId: playerId,
+    });
+    if (!deposit)
+      return {
+        ok: false,
+        code: ErrorCode.GTS_DEPOSIT_NOT_FOUND,
+        error: 'No active deposit found',
+      };
     return { ok: true, creature: deposit.creature };
   }
 
@@ -213,7 +275,9 @@ export class GtsService {
    * @returns Array of pending results (may be empty).
    */
   async getPendingResults(playerId: string): Promise<GtsPendingResultData[]> {
-    return GtsPendingResult.find({ recipientId: playerId }).lean<GtsPendingResultData[]>();
+    return GtsPendingResult.find({ recipientId: playerId }).lean<
+      GtsPendingResultData[]
+    >();
   }
 
   /**
@@ -230,14 +294,23 @@ export class GtsService {
   async claimPendingResult(
     playerId: string,
     pendingResultId: string,
-  ): Promise<{ ok: boolean; creature?: Record<string, unknown>; error?: string }> {
+  ): Promise<{
+    ok: boolean;
+    creature?: Record<string, unknown>;
+    code?: ErrorCode;
+    error?: string;
+  }> {
     const result = await GtsPendingResult.findOneAndDelete({
-      _id:         pendingResultId,
+      _id: pendingResultId,
       recipientId: playerId,
     });
 
     if (!result)
-      return { ok: false, error: 'Pending result not found or does not belong to you' };
+      return {
+        ok: false,
+        code: ErrorCode.GTS_DEPOSIT_NOT_FOUND,
+        error: 'Pending result not found or does not belong to you',
+      };
 
     return { ok: true, creature: result.receivedCreature };
   }

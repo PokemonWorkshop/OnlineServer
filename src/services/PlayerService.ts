@@ -1,6 +1,7 @@
 import { Player } from '../models/Players';
 import { GtsDeposit } from '../models/GtsDeposit';
 import { GtsPendingResult } from '../models/GtsPendingResult';
+import { ErrorCode } from '../http/ErrorCode';
 
 /**
  * Handles player lifecycle operations — notably account deletion,
@@ -15,13 +16,18 @@ export class PlayerService {
    * - Deletes any GtsPendingResult documents belonging to the player
    *
    * @param playerId - The game-side ID of the player to delete.
-   * @returns `{ ok: true }` on success, or `{ ok: false, error }` if player not found.
+   * @returns `{ ok: true }` on success, or `{ ok: false, code, error }` if player not found.
    */
   async deletePlayer(
     playerId: string,
-  ): Promise<{ ok: boolean; error?: string }> {
+  ): Promise<{ ok: boolean; code?: ErrorCode; error?: string }> {
     const player = await Player.findOne({ playerId }).lean();
-    if (!player) return { ok: false, error: 'Player not found' };
+    if (!player)
+      return {
+        ok: false,
+        code: ErrorCode.PLAYER_NOT_REGISTERED,
+        error: 'Player not found',
+      };
 
     const { friendCode } = player;
 

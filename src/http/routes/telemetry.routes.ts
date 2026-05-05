@@ -1,7 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { Router, sendJson } from '../router';
+import { Router, sendJson, sendErrorResponse } from '../router';
 import { requireAdmin } from '../middleware';
+import { ErrorCode, createErrorResponse } from '../ErrorCode';
 import { telemetry } from '../../telemetry/store';
 import { clients } from '../../ws/WsServer';
 import { TelemetrySnapshot } from '../../models/TelemetrySnapshot';
@@ -19,7 +20,13 @@ export function registerTelemetryRoutes(router: Router): void {
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
       res.end(html);
     } catch {
-      sendJson(res, 500, { error: 'Dashboard HTML not found' });
+      sendErrorResponse(
+        res,
+        createErrorResponse(
+          ErrorCode.INTERNAL_SERVER_ERROR,
+          'Dashboard HTML not found',
+        ),
+      );
     }
   });
 

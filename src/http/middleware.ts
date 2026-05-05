@@ -2,6 +2,7 @@ import { IncomingMessage, ServerResponse } from 'node:http';
 import { ENV } from '../config/env';
 import { sendJson, getHeader } from './router';
 import { maintenanceService } from '../services/MaintenanceService';
+import { ErrorCode, createErrorResponse } from './ErrorCode';
 
 // Augment the native type so `playerId` can travel through the request lifecycle.
 declare module 'node:http' {
@@ -52,7 +53,14 @@ export async function apiKeyMiddleware(
 
   const key = getHeader(req, 'x-api-key');
   if (!key || key !== ENV.API_KEY) {
-    sendJson(res, 401, { error: 'Invalid or missing API Key' });
+    sendJson(
+      res,
+      401,
+      createErrorResponse(
+        ErrorCode.INVALID_API_KEY,
+        'Invalid or missing API Key',
+      ),
+    );
     return false;
   }
   return true;
@@ -82,10 +90,15 @@ export async function maintenanceModeMiddleware(
   const status = await maintenanceService.getStatus();
   if (!status.enabled) return true;
 
-  sendJson(res, 503, {
-    error: 503,
-    maintenance: status,
-  });
+  sendJson(
+    res,
+    503,
+    createErrorResponse(
+      ErrorCode.SERVER_IN_MAINTENANCE,
+      status.message ?? 'Server in maintenance',
+      { maintenanceStatus: status },
+    ),
+  );
   return false;
 }
 
@@ -120,13 +133,19 @@ export function extractPlayer(
 ): boolean {
   const id = getHeader(req, 'x-player-id');
   if (!id || id.trim() === '') {
-    sendJson(res, 400, { error: 'Missing X-Player-Id header' });
+    sendJson(
+      res,
+      400,
+      createErrorResponse(
+        ErrorCode.MISSING_PLAYER_ID,
+        'Missing X-Player-Id header',
+      ),
+    );
     return false;
   }
   req.playerId = id.trim();
   return true;
 }
-
 
 /**
  * Inline admin guard — verifies the `x-admin-key` header against `ENV.ADMIN_KEY`.
@@ -153,7 +172,14 @@ export function requireAdmin(
 ): boolean {
   const key = getHeader(req, 'x-admin-key');
   if (!key || key !== ENV.ADMIN_KEY) {
-    sendJson(res, 401, { error: 'Invalid or missing Admin Key' });
+    sendJson(
+      res,
+      401,
+      createErrorResponse(
+        ErrorCode.UNAUTHORIZED,
+        'Invalid or missing Admin Key',
+      ),
+    );
     return false;
   }
   return true;

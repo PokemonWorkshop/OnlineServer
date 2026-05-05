@@ -1,8 +1,9 @@
-import { Router, sendJson, readBody } from '../router';
+import { Router, sendJson, sendErrorResponse, readBody } from '../router';
 import { extractPlayer } from '../middleware';
 import { Player, playerExpiresAt } from '../../models/Players';
 import { FriendService } from '../../services/FriendService';
 import { playerService } from '../../services/PlayerService';
+import { ErrorCode, createErrorResponse } from '../ErrorCode';
 import { z } from 'zod';
 
 const RegisterSchema = z.object({
@@ -40,16 +41,23 @@ export function registerAuthRoutes(router: Router): void {
     try {
       body = await readBody(req);
     } catch {
-      sendJson(res, 400, { error: 'Invalid request body' });
+      sendErrorResponse(
+        res,
+        createErrorResponse(ErrorCode.INVALID_JSON, 'Invalid request body'),
+      );
       return;
     }
 
     const parsed = RegisterSchema.safeParse(body);
     if (!parsed.success) {
-      sendJson(res, 400, {
-        error: 'Invalid data',
-        details: z.treeifyError(parsed.error),
-      });
+      sendErrorResponse(
+        res,
+        createErrorResponse(
+          ErrorCode.INVALID_DATA,
+          'Invalid data',
+          z.treeifyError(parsed.error),
+        ),
+      );
       return;
     }
 
@@ -94,9 +102,13 @@ export function registerAuthRoutes(router: Router): void {
         nameUpdated: false,
       });
     } catch (error) {
-      sendJson(res, 500, {
-        error: 'Unable to create player',
-      });
+      sendErrorResponse(
+        res,
+        createErrorResponse(
+          ErrorCode.INTERNAL_SERVER_ERROR,
+          'Unable to create player',
+        ),
+      );
     }
   });
 
@@ -115,16 +127,23 @@ export function registerAuthRoutes(router: Router): void {
     try {
       body = await readBody(req);
     } catch {
-      sendJson(res, 400, { error: 'Invalid request body' });
+      sendErrorResponse(
+        res,
+        createErrorResponse(ErrorCode.INVALID_JSON, 'Invalid request body'),
+      );
       return;
     }
 
     const parsed = UpdateProfileSchema.safeParse(body);
     if (!parsed.success) {
-      sendJson(res, 400, {
-        error: 'Invalid data',
-        details: z.treeifyError(parsed.error),
-      });
+      sendErrorResponse(
+        res,
+        createErrorResponse(
+          ErrorCode.INVALID_DATA,
+          'Invalid data',
+          z.treeifyError(parsed.error),
+        ),
+      );
       return;
     }
 
@@ -135,7 +154,13 @@ export function registerAuthRoutes(router: Router): void {
     );
 
     if (!player) {
-      sendJson(res, 404, { error: 'Player not found' });
+      sendErrorResponse(
+        res,
+        createErrorResponse(
+          ErrorCode.PLAYER_NOT_REGISTERED,
+          'Player not found',
+        ),
+      );
       return;
     }
 
@@ -164,23 +189,36 @@ export function registerAuthRoutes(router: Router): void {
     try {
       body = await readBody(req);
     } catch {
-      sendJson(res, 400, { error: 'Invalid request body' });
+      sendErrorResponse(
+        res,
+        createErrorResponse(ErrorCode.INVALID_JSON, 'Invalid request body'),
+      );
       return;
     }
 
     const parsed = DeleteProfileSchema.safeParse(body);
     if (!parsed.success) {
-      sendJson(res, 400, {
-        error: 'Missing confirmation',
-        details: z.treeifyError(parsed.error),
-      });
+      sendErrorResponse(
+        res,
+        createErrorResponse(
+          ErrorCode.INVALID_DATA,
+          'Missing confirmation',
+          z.treeifyError(parsed.error),
+        ),
+      );
       return;
     }
 
     const result = await playerService.deletePlayer(req.playerId!);
 
     if (!result.ok) {
-      sendJson(res, 404, { error: result.error });
+      sendErrorResponse(
+        res,
+        createErrorResponse(
+          ErrorCode.PLAYER_NOT_REGISTERED,
+          result.error || 'Player not found',
+        ),
+      );
       return;
     }
 
