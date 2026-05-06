@@ -235,7 +235,7 @@ MysteryGiftSchema.methods.canBeClaimed = function (playerId: string): {
       return {
         canClaim: false,
         reason: 'This gift has expired.',
-        errorCode: ErrorCode.GIFT_NOT_AVAILABLE,
+        errorCode: ErrorCode.GIFT_EXPIRED,
       };
   }
 
