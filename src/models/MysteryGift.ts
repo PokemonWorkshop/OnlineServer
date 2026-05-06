@@ -148,12 +148,12 @@ const MysteryGiftSchema = new Schema<IMysteryGift>(
 
     csvDetails: {
       type: {
-        id: { type: Number, required: true },
-        line: { type: Number, required: true },
+        id: { type: Number },
+        line: { type: Number },
       },
-      default: null,
+      _id: false,
+      default: undefined,
     },
-
     items: {
       type: [
         {

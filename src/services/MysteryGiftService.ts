@@ -12,6 +12,7 @@ import { ErrorCode } from '../http/ErrorCode';
 
 export interface CreateGiftParams {
   title: string;
+  csvDetails?: { id: number; line: number };
   type: MysteryGiftDistrib;
 
   // Content

@@ -51,9 +51,15 @@ const EggSchema = z.object({
   trainer_id: z.number().int().optional(),
 });
 
+const CsvDetailsSchema = z.object({
+  id: z.number().int().positive(),
+  line: z.number().int().positive(),
+});
+
 const CreateGiftSchema = z
   .object({
     title: z.string().min(1).max(64).trim(),
+    csvDetails: CsvDetailsSchema.optional(),
     type: z.enum(['code', 'internet']),
 
     // Content — at least one must be filled (checked below)
@@ -169,7 +175,7 @@ export function registerMysteryGiftRoutes(router: Router): void {
         createErrorResponse(
           ErrorCode.INVALID_DATA,
           'Invalid data',
-          parsed.error.flatten(),
+          z.treeifyError(parsed.error),
         ),
       );
       return;
