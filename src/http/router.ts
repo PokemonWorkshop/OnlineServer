@@ -1,4 +1,10 @@
 import { IncomingMessage, ServerResponse } from 'node:http';
+import {
+  getStatusForErrorCode,
+  ErrorCode,
+  ErrorResponse,
+  createErrorResponse,
+} from './ErrorCode';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -29,10 +35,10 @@ export type Middleware = (
 
 /** Internal route descriptor built from a path pattern string. */
 interface Route {
-  method:     string;
-  pattern:    RegExp;
+  method: string;
+  pattern: RegExp;
   paramNames: string[];
-  handler:    Handler;
+  handler: Handler;
 }
 
 // ─── Router ───────────────────────────────────────────────────────────────────
@@ -59,7 +65,7 @@ interface Route {
  * ```
  */
 export class Router {
-  private readonly routes:      Route[]      = [];
+  private readonly routes: Route[] = [];
   private readonly middlewares: Middleware[] = [];
 
   /**
@@ -78,7 +84,12 @@ export class Router {
       paramNames.push(name);
       return '([^/]+)';
     });
-    this.routes.push({ method, pattern: new RegExp(`^${regexStr}$`), paramNames, handler });
+    this.routes.push({
+      method,
+      pattern: new RegExp(`^${regexStr}$`),
+      paramNames,
+      handler,
+    });
   }
 
   /**
@@ -86,28 +97,36 @@ export class Router {
    * @param path    - Express-style path with optional `:param` segments.
    * @param handler - Async handler function.
    */
-  get(path: string, handler: Handler): void    { this.add('GET',    path, handler); }
+  get(path: string, handler: Handler): void {
+    this.add('GET', path, handler);
+  }
 
   /**
    * Registers a `POST` route.
    * @param path    - Express-style path with optional `:param` segments.
    * @param handler - Async handler function.
    */
-  post(path: string, handler: Handler): void   { this.add('POST',   path, handler); }
+  post(path: string, handler: Handler): void {
+    this.add('POST', path, handler);
+  }
 
   /**
    * Registers a `DELETE` route.
    * @param path    - Express-style path with optional `:param` segments.
    * @param handler - Async handler function.
    */
-  delete(path: string, handler: Handler): void { this.add('DELETE', path, handler); }
+  delete(path: string, handler: Handler): void {
+    this.add('DELETE', path, handler);
+  }
 
   /**
    * Registers a `PATCH` route.
    * @param path    - Express-style path with optional `:param` segments.
    * @param handler - Async handler function.
    */
-  patch(path: string, handler: Handler): void  { this.add('PATCH',  path, handler); }
+  patch(path: string, handler: Handler): void {
+    this.add('PATCH', path, handler);
+  }
 
   /**
    * Dispatches an incoming request through middlewares then the matching route.
@@ -122,8 +141,14 @@ export class Router {
   async handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
     // CORS headers
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-api-key, x-player-id, x-admin-key');
+    res.setHeader(
+      'Access-Control-Allow-Methods',
+      'GET, POST, PATCH, DELETE, OPTIONS',
+    );
+    res.setHeader(
+      'Access-Control-Allow-Headers',
+      'Content-Type, x-api-key, x-player-id, x-admin-key',
+    );
     res.setHeader('Access-Control-Max-Age', '86400');
 
     if (req.method === 'OPTIONS') {
@@ -139,7 +164,7 @@ export class Router {
     }
 
     const pathname = parsePathname(req.url || '/');
-    const method   = req.method || 'GET';
+    const method = req.method || 'GET';
 
     for (const route of this.routes) {
       if (route.method !== method) continue;
@@ -155,7 +180,13 @@ export class Router {
         await route.handler(req, res, params);
       } catch (err) {
         console.error('[Router] Unhandled error:', err);
-        sendJson(res, 500, { error: 'Internal server error' });
+        sendErrorResponse(
+          res,
+          createErrorResponse(
+            ErrorCode.INTERNAL_SERVER_ERROR,
+            'Internal server error',
+          ),
+        );
       }
       return;
     }
@@ -167,7 +198,10 @@ export class Router {
       telemetry.recordHttp(method, pathname, 404, Date.now() - start);
     } catch {}
 
-    sendJson(res, 404, { error: 'Route not found' });
+    sendErrorResponse(
+      res,
+      createErrorResponse(ErrorCode.NOT_FOUND, 'Route not found'),
+    );
   }
 }
 
@@ -180,13 +214,58 @@ export class Router {
  * @param status - HTTP status code.
  * @param data   - Any JSON-serialisable value.
  */
-export function sendJson(res: ServerResponse, status: number, data: unknown): void {
+export function sendJson(
+  res: ServerResponse,
+  status: number,
+  data: unknown,
+): void {
   const body = JSON.stringify(data);
   res.writeHead(status, {
-    'Content-Type':   'application/json',
+    'Content-Type': 'application/json',
     'Content-Length': Buffer.byteLength(body),
   });
   res.end(body);
+}
+
+/**
+ * Helper to send a standardized error response.
+ * The response already contains the HTTP status in `code`.
+ */
+export function sendErrorResponse(
+  res: ServerResponse,
+  response: ErrorResponse,
+): void {
+  sendJson(res, response.code, response);
+}
+
+/**
+ * Helper to send a service response with automatic status code determination.
+ * If the response has an error code, it uses that to determine the HTTP status.
+ *
+ * @param res - Server response to write to.
+ * @param response - Service response that may contain a `code` field.
+ */
+export function sendServiceResponse(res: ServerResponse, response: any): void {
+  // If there's a business error code in the service response, convert it
+  // into the standardized client response shape.
+  if (!response.ok && response.code) {
+    const errorResponse = createErrorResponse(
+      response.code as ErrorCode,
+      response.error ?? 'Internal server error',
+      response.details,
+    );
+    const status = getStatusForErrorCode(response.code as ErrorCode);
+    sendJson(res, status, errorResponse);
+  } else if (!response.ok) {
+    const errorResponse = createErrorResponse(
+      ErrorCode.INTERNAL_SERVER_ERROR,
+      response?.error ?? 'Internal server error',
+      response?.details,
+    );
+    sendJson(res, 500, errorResponse);
+  } else {
+    sendJson(res, 200, response);
+  }
 }
 
 /**

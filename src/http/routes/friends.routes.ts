@@ -1,6 +1,7 @@
-import { Router, sendJson } from '../router';
+import { Router, sendJson, sendServiceResponse } from '../router';
 import { extractPlayer } from '../middleware';
 import { friendService } from '../../services/FriendService';
+import { ErrorCode } from '../ErrorCode';
 
 export function registerFriendRoutes(router: Router): void {
   /**
@@ -12,7 +13,12 @@ export function registerFriendRoutes(router: Router): void {
     if (!extractPlayer(req, res)) return;
     const data = await friendService.getList(req.playerId!);
     if (!data) {
-      sendJson(res, 404, { error: 'Player not registered' });
+      ErrorCode.PLAYER_NOT_REGISTERED;
+      sendJson(res, 404, {
+        ok: false,
+        code: 'PLAYER_NOT_REGISTERED',
+        error: 'Player not registered',
+      });
       return;
     }
     sendJson(res, 200, data);
@@ -42,7 +48,7 @@ export function registerFriendRoutes(router: Router): void {
         req.playerId!,
         params.friendCode,
       );
-      sendJson(res, result.ok ? 200 : 400, result);
+      sendServiceResponse(res, result);
     },
   );
 
@@ -58,7 +64,7 @@ export function registerFriendRoutes(router: Router): void {
         req.playerId!,
         params.friendCode,
       );
-      sendJson(res, result.ok ? 200 : 400, result);
+      sendServiceResponse(res, result);
     },
   );
 
@@ -88,6 +94,6 @@ export function registerFriendRoutes(router: Router): void {
       req.playerId!,
       params.friendCode,
     );
-    sendJson(res, result.ok ? 200 : 400, result);
+    sendServiceResponse(res, result);
   });
 }

@@ -1,6 +1,7 @@
-import { Router, sendJson, readBody } from '../router';
+import { Router, sendJson, sendErrorResponse, readBody } from '../router';
 import { requireAdmin } from '../middleware';
 import { maintenanceService } from '../../services/MaintenanceService';
+import { ErrorCode, createErrorResponse } from '../ErrorCode';
 import { z } from 'zod';
 
 const UpdateMaintenanceSchema = z
@@ -12,9 +13,10 @@ const UpdateMaintenanceSchema = z
   .superRefine((data, ctx) => {
     if (data.enabled && (!data.message || data.message.trim() === '')) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: 'custom',
         path: ['message'],
-        message: 'A maintenance message is required when maintenance is enabled',
+        message:
+          'A maintenance message is required when maintenance is enabled',
       });
     }
   });
@@ -32,16 +34,23 @@ export function registerMaintenanceRoutes(router: Router): void {
     try {
       body = await readBody(req);
     } catch {
-      sendJson(res, 400, { error: 'Invalid request body' });
+      sendErrorResponse(
+        res,
+        createErrorResponse(ErrorCode.INVALID_JSON, 'Invalid request body'),
+      );
       return;
     }
 
     const parsed = UpdateMaintenanceSchema.safeParse(body);
     if (!parsed.success) {
-      sendJson(res, 400, {
-        error: 'Invalid data',
-        details: z.treeifyError(parsed.error),
-      });
+      sendErrorResponse(
+        res,
+        createErrorResponse(
+          ErrorCode.INVALID_DATA,
+          'Invalid data',
+          z.treeifyError(parsed.error),
+        ),
+      );
       return;
     }
 

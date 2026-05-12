@@ -1,4 +1,5 @@
 import { Player, PlayerData, playerExpiresAt } from '../models/Players';
+import { ErrorCode } from '../http/ErrorCode';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -104,7 +105,9 @@ export class FriendService {
    * @returns An object with `friends` and `pendingRequests`, or `null` if the
    *   player does not exist in the database.
    */
-  async getList(playerId: string) {
+  async getList(
+    playerId: string,
+  ): Promise<{ friends: any[]; pendingRequests: any[] } | null> {
     const player = await Player.findOne({ playerId }).lean<PlayerData>();
     if (!player) return null;
 
@@ -154,19 +157,36 @@ export class FriendService {
    *
    * @param fromPlayerId - Initiating player's ID.
    * @param toFriendCode - Target player's friend code.
-   * @returns `{ ok: true }` on success, or `{ ok: false, error }` on failure.
+   * @returns `{ ok: true }` on success, or `{ ok: false, code, error }` on failure.
    */
   async sendRequest(fromPlayerId: string, toFriendCode: string) {
     const from = await Player.findOne({ playerId: fromPlayerId });
     const to = await Player.findOne({ friendCode: toFriendCode });
 
-    if (!from || !to) return { ok: false, error: 'Player not found' };
+    if (!from || !to)
+      return {
+        ok: false,
+        code: ErrorCode.PLAYER_NOT_REGISTERED,
+        error: 'Player not found',
+      };
     if (from.playerId === to.playerId)
-      return { ok: false, error: 'Cannot add yourself' };
+      return {
+        ok: false,
+        code: ErrorCode.CANNOT_FRIEND_YOURSELF,
+        error: 'Cannot add yourself',
+      };
     if (from.friends.includes(to.friendCode))
-      return { ok: false, error: 'This player is already your friend' };
+      return {
+        ok: false,
+        code: ErrorCode.FRIEND_ALREADY_ADDED,
+        error: 'This player is already your friend',
+      };
     if (to.pendingRequests.includes(from.friendCode))
-      return { ok: false, error: 'A request is already pending' };
+      return {
+        ok: false,
+        code: ErrorCode.FRIEND_REQUEST_ALREADY_EXISTS,
+        error: 'A request is already pending',
+      };
 
     await Player.findByIdAndUpdate(to._id, {
       $addToSet: { pendingRequests: from.friendCode },
@@ -184,15 +204,24 @@ export class FriendService {
    *
    * @param playerId            - The player accepting the request.
    * @param requesterFriendCode - Friend code of the player who sent the request.
-   * @returns `{ ok: true }` on success, or `{ ok: false, error }` on failure.
+   * @returns `{ ok: true }` on success, or `{ ok: false, code, error }` on failure.
    */
   async acceptRequest(playerId: string, requesterFriendCode: string) {
     const player = await Player.findOne({ playerId });
     const requester = await Player.findOne({ friendCode: requesterFriendCode });
 
-    if (!player || !requester) return { ok: false, error: 'Player not found' };
+    if (!player || !requester)
+      return {
+        ok: false,
+        code: ErrorCode.FRIEND_NOT_FOUND,
+        error: 'Player not found',
+      };
     if (!player.pendingRequests.includes(requesterFriendCode))
-      return { ok: false, error: 'No request from this friend' };
+      return {
+        ok: false,
+        code: ErrorCode.FRIEND_REQUEST_NOT_FOUND,
+        error: 'No request from this friend',
+      };
 
     await Player.findByIdAndUpdate(player._id, {
       $pull: { pendingRequests: requesterFriendCode },
@@ -227,13 +256,18 @@ export class FriendService {
    *
    * @param playerId   - The player initiating the removal.
    * @param friendCode - Friend code of the player to remove.
-   * @returns `{ ok: true }` on success, or `{ ok: false, error }` on failure.
+   * @returns `{ ok: true }` on success, or `{ ok: false, code, error }` on failure.
    */
   async removeFriend(playerId: string, friendCode: string) {
     const player = await Player.findOne({ playerId });
     const friend = await Player.findOne({ friendCode });
 
-    if (!player || !friend) return { ok: false, error: 'Player not found' };
+    if (!player || !friend)
+      return {
+        ok: false,
+        code: ErrorCode.FRIEND_NOT_FOUND,
+        error: 'Player not found',
+      };
 
     await Player.findByIdAndUpdate(player._id, {
       $pull: { friends: friendCode },
