@@ -93,7 +93,7 @@ export class MysteryGiftService {
     error?: string;
     gift?: Pick<
       MysteryGiftData,
-      'giftId' | 'title' | 'items' | 'creatures' | 'eggs'
+      'giftId' | 'title' | 'items' | 'creatures' | 'eggs' | 'csvDetails'
     >;
   }> {
     if (!code && !giftId)
@@ -137,6 +137,7 @@ export class MysteryGiftService {
         items: gift.items ?? [],
         creatures: gift.creatures ?? [],
         eggs: gift.eggs ?? [],
+        csvDetails: gift.csvDetails ?? undefined,
       },
     };
   }
