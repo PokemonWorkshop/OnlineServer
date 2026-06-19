@@ -91,6 +91,31 @@ const CreateGiftSchema = z
     { message: 'The gift must contain at least one item, creature, or egg.' },
   );
 
+// Schema for admin edits — every field optional since updates are partial.
+// No content-count refine here on purpose: an admin may legitimately want to
+// clear out items/creatures/eggs progressively across multiple edits.
+const UpdateGiftSchema = z.object({
+  title: z.string().min(1).max(64).trim().optional(),
+  csvDetails: CsvDetailsSchema.optional(),
+  type: z.enum(['code', 'internet']).optional(),
+
+  items: z.array(ItemSchema).optional(),
+  creatures: z.array(CreatureSchema).optional(),
+  eggs: z.array(EggSchema).optional(),
+
+  code: z.string().min(1).max(32).trim().optional(),
+  allowedClaimers: z.array(z.string()).optional(),
+  maxClaims: z.number().int().min(-1).optional(),
+
+  alwaysAvailable: z.boolean().optional(),
+  validFrom: z.iso.datetime().optional(),
+  validTo: z.iso.datetime().optional(),
+  rarity: z.number().int().min(0).max(3).optional(),
+
+  // Lets an admin reactivate a soft-deleted gift, or deactivate one directly.
+  active: z.boolean().optional(),
+});
+
 const ClaimSchema = z
   .object({
     code: z.string().optional(),
@@ -152,6 +177,34 @@ export function registerMysteryGiftRoutes(router: Router): void {
   });
 
   /**
+   * GET /api/v1/mystery-gift/admin
+   * Lists ALL gifts (active or not, expired or not) — full admin view,
+   * including claimedBy and allowedClaimers.
+   */
+  router.get('/api/v1/mystery-gift/admin', async (req, res) => {
+    if (!requireAdmin(req, res)) return;
+    const gifts = await mysteryGiftService.listAll();
+    sendJson(res, 200, gifts);
+  });
+
+  /**
+   * GET /api/v1/mystery-gift/admin/:giftId
+   * Returns the full detail of a single gift (useful to prefill an edit form).
+   */
+  router.get('/api/v1/mystery-gift/admin/:giftId', async (req, res, params) => {
+    if (!requireAdmin(req, res)) return;
+    const gift = await mysteryGiftService.getById(params.giftId);
+    if (!gift) {
+      sendErrorResponse(
+        res,
+        createErrorResponse(ErrorCode.GIFT_NOT_FOUND, 'Gift not found'),
+      );
+      return;
+    }
+    sendJson(res, 200, gift);
+  });
+
+  /**
    * POST /api/v1/mystery-gift/admin/create
    * Creates a gift (admin only, protected by global API Key).
    */
@@ -197,6 +250,66 @@ export function registerMysteryGiftRoutes(router: Router): void {
       sendErrorResponse(res, createErrorResponse(code, errorMsg));
     }
   });
+
+  /**
+   * PATCH /api/v1/mystery-gift/admin/:giftId
+   * Fully edits an existing gift (any field may be updated, partially).
+   */
+  router.patch(
+    '/api/v1/mystery-gift/admin/:giftId',
+    async (req, res, params) => {
+      if (!requireAdmin(req, res)) return;
+
+      let body: unknown;
+      try {
+        body = await readBody(req);
+      } catch {
+        sendErrorResponse(
+          res,
+          createErrorResponse(ErrorCode.INVALID_JSON, 'Invalid JSON'),
+        );
+        return;
+      }
+
+      const parsed = UpdateGiftSchema.safeParse(body);
+      if (!parsed.success) {
+        sendErrorResponse(
+          res,
+          createErrorResponse(
+            ErrorCode.INVALID_DATA,
+            'Invalid data',
+            z.treeifyError(parsed.error),
+          ),
+        );
+        return;
+      }
+
+      const { validFrom, validTo, ...rest } = parsed.data;
+      try {
+        const gift = await mysteryGiftService.update(params.giftId, {
+          ...rest,
+          ...(validFrom !== undefined
+            ? { validFrom: new Date(validFrom) }
+            : {}),
+          ...(validTo !== undefined ? { validTo: new Date(validTo) } : {}),
+        });
+        if (!gift) {
+          sendErrorResponse(
+            res,
+            createErrorResponse(ErrorCode.GIFT_NOT_FOUND, 'Gift not found'),
+          );
+          return;
+        }
+        sendJson(res, 200, gift);
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : 'Update error';
+        const code = errorMsg.includes('already exists')
+          ? ErrorCode.GIFT_ALREADY_CODE
+          : ErrorCode.INVALID_REQUEST_BODY;
+        sendErrorResponse(res, createErrorResponse(code, errorMsg));
+      }
+    },
+  );
 
   /**
    * DELETE /api/v1/mystery-gift/admin/:giftId
