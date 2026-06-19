@@ -32,6 +32,30 @@ export interface CreateGiftParams {
   rarity?: number;
 }
 
+// Params for a partial admin edit of an existing gift.
+// Every field is optional since updates may touch just one or two fields.
+export interface UpdateGiftParams {
+  title?: string;
+  csvDetails?: { id: number; line: number };
+  type?: MysteryGiftDistrib;
+
+  items?: IGiftItem[];
+  creatures?: IGiftCreature[];
+  eggs?: IGiftEgg[];
+
+  code?: string;
+  allowedClaimers?: string[];
+  maxClaims?: number;
+
+  alwaysAvailable?: boolean;
+  validFrom?: Date;
+  validTo?: Date;
+  rarity?: number;
+
+  // Maps to isActive on the model — lets an admin reactivate or deactivate directly.
+  active?: boolean;
+}
+
 // Public return type (without claimedBy or allowedClaimers)
 export type PublicGift = Omit<
   MysteryGiftData,
@@ -163,6 +187,70 @@ export class MysteryGiftService {
       code: params.code?.toUpperCase(),
     });
     return gift.toObject() as unknown as MysteryGiftData;
+  }
+
+  /**
+   * Lists ALL gifts regardless of state (active/inactive, expired or not).
+   * Full admin view — includes claimedBy and allowedClaimers, unlike listForPlayer.
+   */
+  async listAll(): Promise<MysteryGiftData[]> {
+    return MysteryGift.find({}).select('-__v').lean<MysteryGiftData[]>();
+  }
+
+  /**
+   * Returns the full detail of a single gift by giftId (admin view).
+   * Returns null if not found, left to the route to translate into a 404.
+   */
+  async getById(giftId: string): Promise<MysteryGiftData | null> {
+    return MysteryGift.findOne({ giftId })
+      .select('-__v')
+      .lean<MysteryGiftData>();
+  }
+
+  /**
+   * Updates an existing gift (admin endpoint), partially.
+   * Re-validates type/code consistency against the merged (existing + update) state,
+   * and checks for code collisions only when the code actually changes.
+   */
+  async update(
+    giftId: string,
+    params: UpdateGiftParams,
+  ): Promise<MysteryGiftData | null> {
+    const existing = await MysteryGift.findOne({ giftId });
+    if (!existing) return null;
+
+    const nextType = params.type ?? existing.type;
+    const nextCode =
+      params.code !== undefined ? params.code.toUpperCase() : existing.code;
+
+    if (nextType === 'code' && !nextCode)
+      throw new Error('A code is required for a gift of type "code".');
+
+    // Only check for collisions if the code is actually changing
+    if (params.code !== undefined && nextCode !== existing.code) {
+      const duplicate = await MysteryGift.exists({
+        code: nextCode,
+        giftId: { $ne: giftId },
+      });
+      if (duplicate)
+        throw new Error(`A gift with code "${nextCode}" already exists.`);
+    }
+
+    // "active" maps to the isActive model field; everything else passes through as-is
+    const { active, code, ...rest } = params;
+    const updateDoc: Record<string, unknown> = {
+      ...rest,
+      ...(code !== undefined ? { code: nextCode } : {}),
+      ...(active !== undefined ? { isActive: active } : {}),
+    };
+
+    return MysteryGift.findOneAndUpdate(
+      { giftId },
+      { $set: updateDoc },
+      { new: true },
+    )
+      .select('-__v')
+      .lean<MysteryGiftData>();
   }
 
   /** Deactivates a gift (soft delete) without removing it from DB. */
