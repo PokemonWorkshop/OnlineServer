@@ -8,8 +8,9 @@ RUN npm install
 
 # Copy source and build
 COPY . .
+RUN npm run build
 
 # Logs directory (mounted as volume in compose)
 RUN mkdir -p logs
 
-CMD ["npm", "run", "dev"]
+CMD ["npm", "start"]
