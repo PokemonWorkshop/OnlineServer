@@ -146,6 +146,7 @@ An in-process metrics store tracks request counts, error rates, WebSocket connec
 ├── .env.example
 ├── docker-compose.yml
 ├── docker-compose.server-only.yml
+├── docker-compose.dev.yml
 ├── Dockerfile
 ├── Dockerfile.mongodb
 ├── init_mongo.sh
@@ -211,6 +212,12 @@ docker compose up --build
 ```
 
 The server waits for MongoDB to pass its health check before starting. Data is persisted in a named Docker volume (`mongo_data`). Logs are persisted in `server_logs`.
+
+By default the container builds and runs the compiled server (`npm start`), same as a real deployment. For hot-reload during development, layer the dev override:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+```
 
 ### Docker (External MongoDB)
 

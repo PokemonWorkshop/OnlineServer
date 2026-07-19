@@ -1,0 +1,10 @@
+# Dev override: hot-reload via tsx watch instead of the built prod server.
+# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+services:
+  server:
+    command: npm run dev
+    environment:
+      - NODE_ENV=development
+    volumes:
+      - server_logs:/usr/src/app/logs
+      - ./src:/usr/src/app/src
